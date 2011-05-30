@@ -12,7 +12,7 @@ This design is analogous to the way that Linux provides access
 to its devices using files and directories under /dev.
 
 This design has several benefits compared to gui interfaces
-such as: [MegaSquirt][megasquirt], [TunerStudio][tunerstudio] and [MegaTunix][megatunix].
+such as: [MegaTune][megatune], [TunerStudio][tunerstudio] and [MegaTunix][megatunix].
 
   * simple - Changing settings and reading data is as easy as editing
     and reading from a text file.
@@ -30,6 +30,7 @@ such as: [MegaSquirt][megasquirt], [TunerStudio][tunerstudio] and [MegaTunix][me
  [tunerstudio]: http://www.efianalytics.com/TunerStudio/
  [megatunix]: http://megatunix.sourceforge.net
  [msextra]: http://www.msextra.com
+ [megatune]: http://www.megasquirt.info/megatune.htm
 
 INSTALLATION
 ------------
