@@ -1,23 +1,23 @@
 
 INCLUDE=
 
-OBJECTS = 
-CC=gcc
+OBJECTS= 
+CC=g++
 CFLAGS=-Wall -ansi -pedantic $(INCLUDE)
 
 all: msqdev
 
-doc: *.c *.h 
+doc: *.cpp *.h msqdev.cpp
 	doxygen  # using Doxyfile 
 
-msqdev: main.c $(OBJECTS) msqserial.h
-	$(CC) $(CFLAGS) $^ -o $@
+msqdev: msqdev.cpp MSQSerial.h MSQData.h MSQData/Table.h
+	$(CC) $(CFLAGS) $< -o $@
 
-%.o: %.c %.h
-	$(CC) $(CFLAGS) -c $<
+#%.o: %.c %.h
+#	$(CC) $(CFLAGS) -c $<
 
 clean:
-	-rm -f main msqdev
+	-rm -f msqdev
 	-rm -f $(OBJECTS)
 	-rm -fr doc
 

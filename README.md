@@ -2,28 +2,23 @@
 NAME
 ----
 
-msqdev - file based MegaSquirt control
+msqdev - file based control of a MegaSquirt ecu
 
 INTRODUCTON
 -----------
 
-msqdev provides a daemon that enables control of a [MegaSquirt][megasquirt]
-controller through files and directories.
+msqdev provides file based control of tables/settings in a [MegaSquirt][megasquirt] ecu.
 This design is analogous to the way that Linux provides access
-to its devices using files and directories under /dev/.
+to its devices using files and directories under /dev.
 
-This design has several benefits compared to the typical monster monolith
-design found in [MegaSquirt][megasquirt], [TunerStudio][tunerstudio] and [MegaTunix][megatunix].
+This design has several benefits compared to gui interfaces
+such as: [MegaSquirt][megasquirt], [TunerStudio][tunerstudio] and [MegaTunix][megatunix].
 
   * simple - Changing settings and reading data is as easy as editing
     and reading from a text file.
 
-  * experimentation - Experimenting with settings in a methodical way
-    is easily accomplished by writing programs that edit text files.
-    A simple example is a script to optimize ignition timing during idle
-    or steady cruising.
-    Using a simple hill climbing technique it could alter the timing until
-    the rpm is maximized.
+  * experimentation - Experimenting with settings is easily accomplished
+	by writing programs that edit text files.
 
   * compatibility - All settings are in text files and upgrades between
     version can be accomplished by writing scripts that convert these files.
@@ -35,6 +30,18 @@ design found in [MegaSquirt][megasquirt], [TunerStudio][tunerstudio] and [MegaTu
  [tunerstudio]: http://www.efianalytics.com/TunerStudio/
  [megatunix]: http://megatunix.sourceforge.net
  [msextra]: http://www.msextra.com
+
+INSTALLATION
+------------
+
+The liblookuptable library is required in order to use msqdev.
+It can be downloaded from [liblookuptable][liblookuptable].
+Depending on where this library is installed it may be necessary
+to update the include paths for the Gcc compiler.
+This can be accomplished by using the environment variable 'CPLUS\_INCLUDE\_PATH'.
+See the Gcc man page for more info (man 1 gcc).
+
+  [liblookuptable]: https://github.com/jmahler/liblookuptable
 
 ## FAQ
 
