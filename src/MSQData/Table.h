@@ -454,7 +454,7 @@ class MSQDataTable : public MSQData
 
 		// {{{ hasChanges
 		bool hasChanges() {
-			return (*ecu_data == *file_data);
+			return (*ecu_data != *file_data);
 		}
 		// }}}
 

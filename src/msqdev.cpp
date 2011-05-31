@@ -79,10 +79,10 @@ int main(int argc, char** argv)
 	// {{{ command line arguments
     if (argc < 2) {
 		cout << " USAGE:\n"
-         	 << "   msqdev <device> [<dir>] [<options>]\n"
+         	 << "   msqdev <device> [<options>]\n"
         	 << "   msqdev /dev/ttyUSB0 ./\n"
 			 << " OPTIONS:\n"
-			 << "   <dir>        directory of files, default './'\n"
+			 << "   -d           directory of files, default './'\n"
 			 << "   -ue          update ecu from files on startup\n"
 			 << "   -uf          update files from ecu on startup\n"
 			 << " SIGNALS:\n"
@@ -93,20 +93,22 @@ int main(int argc, char** argv)
 	string serial_dev = argv[1];
 
 	string dir = "";
-	if (argc > 2) {
-		dir = argv[2];
-	}
 
-	for (int i = 3; i < argc; i++) {
+	for (int i = 2; i < argc; i++) {
 		string arg = argv[i];
 
 		if (arg == "-ue") {
 			update = ecu;
 		} else if (arg == "-uf") {
 			update = file;
+		} else if (arg == "-d") {
+			if ((i + 1) >= argc) {
+				cerr << "the -d option requires a director" << endl;
+				return 1;  // error
+			}
 		} else {
 			cout << "unkown argument: '" << arg << "'\n";
-			return 1;
+			return 1;  // error
 		}
 	}
 	// }}}
@@ -271,6 +273,7 @@ int main(int argc, char** argv)
 				MSQData *table = tables[i];
 
 				if (table->hasChanges()) {
+					table->cpEcuToFile();
 					table->writeFile();
 				}
 			}
