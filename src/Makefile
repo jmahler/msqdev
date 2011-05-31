@@ -10,11 +10,8 @@ all: msqdev
 doc: *.cpp *.h msqdev.cpp
 	doxygen  # using Doxyfile 
 
-msqdev: msqdev.cpp MSQSerial.h MSQData.h MSQData/Table.h
+msqdev: msqdev.cpp MSQSerial.h MSQData.h MSQData/Table.h MSQRealTime.h MSQUtils.h
 	$(CC) $(CFLAGS) $< -o $@
-
-#%.o: %.c %.h
-#	$(CC) $(CFLAGS) -c $<
 
 clean:
 	-rm -f msqdev

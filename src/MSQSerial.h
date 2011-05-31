@@ -17,20 +17,32 @@
 
 #pragma once
 
-#include <stdlib.h>  /* malloc */
-#include <stdio.h>   /* Standard input/output definitions */
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
-#include <termios.h> /* POSIX terminal control definitions */
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
 /* http://www.easysw.com/~mike/serial/serial.html */
 #include <sys/ioctl.h>
+
+using namespace std;
 
 int usleep(__useconds_t usec);  // to quiet the compiler
 
 /**
  * Megasquirt serial device communications.
+ *
+ * These operations are meant to be generic to all
+ * versions MegaSquirt.
+ * Version specific functionality is supported through
+ * command arguments (see cmd_A() for an example).
+ *
+ * See http://www.msextra.com/doc/ms2extra/RS232_MS2.html for a description
+ * of the serial protocol.
  */
 class MSQSerial {
 	private:
@@ -93,6 +105,13 @@ class MSQSerial {
 	public:
 
 		// {{{ MSQSerial(dev_file)
+		/**
+		 * Create a new MSQSerial object.
+		 *
+		 * Connection to the device is not initiated here (see connect()).
+		 *
+		 * @arg serial device
+		 */
 		MSQSerial(const string _dev_file) {
 			dev_file = _dev_file;
 		}
@@ -109,6 +128,9 @@ class MSQSerial {
 		 * Connect (or reconnect) to the serial device.
 		 * 
 		 * @returns true on error, false otherwise
+		 *
+		 * Currently it only supports version 3.* series with a
+		 * baud rate of 115200.
 		 */
 		bool connect() {
 			struct termios options;
@@ -143,51 +165,64 @@ class MSQSerial {
 		// }}}
 
 		// {{{ cmd_Q
-		// TODO - What is the Q command for?
 		/**
-		 * Run the "Q" command and get the result.
+		 * Get the MS2 code version.
+		 *
+		 * @returns version as a string on success, empty string on error
 		 */
-		int cmd_Q(char* buf)
+		string cmd_Q()
 		{
-			int n;
+			int n;  // read/write counts
 
 			n = write(devfd, "Q", 1);
-			if (n != 1)
-				fputs("write of Q command failed!\n", stderr);
-
-			n = sread(devfd, buf, 20, 3);
-			if (n < 0) {
-				return -1;  // error
+			if (n != 1) {
+				cerr << "write of Q command failed\n";
+				return "";
 			}
 
-			return n;  // OK
+			char buf[21];
+			n = sread(devfd, buf, 20, 3);
+			if (n < 0) {
+				cerr << "read of Q command failed\n";
+				return "";  // error
+			}
+
+			string ver(buf);
+			return ver;  // OK
 		}
 		// }}}
 
 		// {{{ cmd_S
 		/**
-		 * Run the "S" command and get the result.
+		 * Get the ecu signature.
+		 *
+		 * @returns signature as a string on success, empty string on error
 		 */
-		int cmd_S(char* buf)
+		string cmd_S()
 		{
-			int n;
+			int n;  // read/write counts
 			
 			n = write(devfd, "S", 1);
-			if (n < 0)
-				fputs("write of S command failed!\n", stderr);
-
-			n = sread(devfd, buf, 60, 5);
-			if (n < 0) {
-				return -1;  // error
+			if (n < 0)  {
+				cerr << "write of S command failed!\n";
+				return "";  // error
 			}
 
-			return n;  // OK
+			char buf[61];
+			n = sread(devfd, buf, 60, 5);
+			if (n < 0) {
+				cerr << "error reading result of S command\n";
+				return "";  // error
+			}
+			string sig(buf);
+
+			return sig;  // OK
 		}
 		// }}}
 
 		// {{{ cmd_r
 		/**
-		 * Run the "r" command to read data from the ecu.
+		 * Read data such as tables and settings from the ecu.
 		 *
 		 * cmd_r(<tbl_idx>, <offset>, <bytes>)
 		 */
@@ -246,9 +281,9 @@ class MSQSerial {
 
 		// {{{ cmd_w
 		/**
-		 * Run the "w" command and get the result.
-		 * The w command is similar to the r command except that
-		 * it writes instead of reading.
+		 * Write data such as tables and settings to the ecu.
+		 *
+		 * This command is the opposite of the "r" (read) command.
 		 *
 		 * cmd_w(<tbl_idx>, <offset>, <num_bytes>, <bytes>)
 		 */
@@ -307,6 +342,43 @@ class MSQSerial {
 			}
 
 			return true;  // OK
+		}
+		// }}}
+
+		// {{{ cmd_A
+		/**
+		 * Read real time data.
+		 *
+		 * @arg number of bytes (see .ini)
+		 *
+		 * @arg buffer to store bytes
+		 *
+		 * @returns false on success, true on error
+		 *
+		 * The number of bytes is dependent upon the MegaSquirt version
+		 * being used.  The ini file included with MegaSquirt should
+		 * specify what this size is.
+		 * The buffer must be large enough to store this many bytes.
+		 * And the actual values described by the bytes should also be
+		 * described in the ini file.
+		 */
+		bool cmd_A(const int num_bytes, char* buf)
+		{
+			int n;  // read/write counts
+			
+			n = write(devfd, "A", 1);
+			if (n < 0)  {
+				cerr << "write of A command failed\n";
+				return true;  // error
+			}
+
+			n = sread(devfd, buf, num_bytes, 5);
+			if (n < 0) {
+				cerr << "error reading result of A command\n";
+				return true;  // error
+			}
+
+			return false;  // OK
 		}
 		// }}}
 

@@ -15,16 +15,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "MSQData.h"
-#include "MSQData/Table.h"
-#include "MSQSerial.h"
-
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <signal.h>
-#include <unistd.h>
 #include <string>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "MSQData.h"
+#include "MSQData/Table.h"
+#include "MSQSerial.h"
+#include "MSQRealTime.h"
 
 using namespace std;
 
@@ -33,7 +35,7 @@ using namespace std;
 static void sig_update(int sig, siginfo_t *siginfo, void *context);
 
 enum { none, file, ecu };
-int update;
+int update = none;
 
 // {{{ log()
 /*
@@ -75,7 +77,7 @@ int main(int argc, char** argv)
 	sigaction(SIGHUP, &sa_update, NULL);
 
 	// {{{ command line arguments
-    if (argc <= 2) {
+    if (argc < 2) {
 		cout << " USAGE:\n"
          	 << "   msqdev <device> [<dir>] [<options>]\n"
         	 << "   msqdev /dev/ttyUSB0 ./\n"
@@ -91,7 +93,7 @@ int main(int argc, char** argv)
 	string serial_dev = argv[1];
 
 	string dir = "";
-	if (argc >= 2) {
+	if (argc > 2) {
 		dir = argv[2];
 	}
 
@@ -106,6 +108,26 @@ int main(int argc, char** argv)
 			cout << "unkown argument: '" << arg << "'\n";
 			return 1;
 		}
+	}
+	// }}}
+
+	// {{{ write the pid (process id) to a file
+	{
+	pid_t pid = getpid();
+
+	string pidfile = dir;
+	if (! pidfile.empty())
+		pidfile += "/";
+	pidfile += "pid";
+
+	ofstream pidfd(pidfile.c_str(), ios_base::trunc);
+	if (pidfd.fail()) {
+		perror("unable to open pid file");
+		return 1; // error
+	}
+	pidfd << pid << endl;
+
+	pidfd.close();
 	}
 	// }}}
 
@@ -215,6 +237,19 @@ int main(int argc, char** argv)
 	tables[1] = &veTable1;
 	tables[2] = &afrTable1;
 
+	// {{{ configure real time data
+	vector<RTConfig*> rtconfig;
+
+	RTConfigScalar seconds("seconds", "U16", 0, 1, 0);
+	rtconfig.push_back(&seconds);
+	RTConfigScalar rpm("rpm", "U16", 6, 1, 0);
+	rtconfig.push_back(&rpm);
+	RTConfigScalar advance("advance", "S16", 8, 0.1, 0);
+	rtconfig.push_back(&advance);
+
+	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);
+	// }}}
+
 	while (1) {
 		if (update == ecu) {
 			update = none;
@@ -240,7 +275,8 @@ int main(int argc, char** argv)
 				}
 			}
 		} else {
-			pause();  // wait for an interrupt
+			rtData.readAppend();
+			usleep(5e5);
 		}
 	}
 

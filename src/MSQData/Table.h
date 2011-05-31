@@ -197,6 +197,8 @@ class MSQDataTable : public MSQData
 					return true;  // error
 				}
 
+				// TODO - use bufToValue()
+
 				// convert the values by their integer type
 				for (int j = 0, k = 0; j < num_bytes; j += byte_mult, k++) {
 					if ("U16" == type) {
