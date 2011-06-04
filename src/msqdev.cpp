@@ -253,15 +253,78 @@ int main(int argc, char** argv)
 	tables[2] = &afrTable1;
 
 	// {{{ configure real time data
+	
+	// To configure these items look for the [BurstMode] section
+	// of the MegaSquirt ini file.
+
 	vector<RTConfig*> rtconfig;
 
+	// RTConfigScalar(name, type, offset, mult, add)
+
+	// seconds 
+	// seconds          = scalar, U16,    0, "s",   1.000, 0.0
 	RTConfigScalar seconds("seconds", "U16", 0, 1, 0);
 	rtconfig.push_back(&seconds);
+
+	// pulseWidth1      = scalar, U16,    2, "s",   0.000666, 0.0
+	RTConfigScalar pulseWidth1("pulseWidth1", "U16", 2, 0.000666, 0);
+	rtconfig.push_back(&pulseWidth1);
+
+	// pulseWidth2
+	RTConfigScalar pulseWidth2("pulseWidth2", "U16", 4, 0.000666, 0);
+	rtconfig.push_back(&pulseWidth2);
+
+	// rpm
 	RTConfigScalar rpm("rpm", "U16", 6, 1, 0);
 	rtconfig.push_back(&rpm);
+
+	// advance
 	RTConfigScalar advance("advance", "S16", 8, 0.1, 0);
 	rtconfig.push_back(&advance);
 
+	// afrtgt1          = scalar, U08,   12, "AFR", 0.1, 0.0
+	RTConfigScalar afrtgt1("afrtgt1", "U08", 12, 0.1, 0);
+	rtconfig.push_back(&afrtgt1);
+   	// afrtgt2          = scalar, U08,   13, "AFR", 0.1, 0.0
+	RTConfigScalar afrtgt2("afrtgt1", "U08", 13, 0.1, 0);
+	rtconfig.push_back(&afrtgt2);
+
+	RTConfigScalar barometer("barometer", "S16", 16, 0.1, 0);
+	rtconfig.push_back(&barometer);
+
+	RTConfigScalar map("map", "S16", 18, 0.1, 0);
+	rtconfig.push_back(&map);
+
+	// Celsius
+	RTConfigScalar mat("mat", "S16", 18, 0.05555, -320.0);
+	rtconfig.push_back(&mat);
+
+	// Celsius
+	RTConfigScalar coolant("coolant", "S16", 18, 0.05555, -320.0);
+	rtconfig.push_back(&coolant);
+
+	RTConfigScalar tps("tps", "S16", 24, 0.1, 0.0);
+	rtconfig.push_back(&tps);
+
+	RTConfigScalar batteryVoltage("batteryVoltage", "S16", 26, 0.1, 0.0);
+	rtconfig.push_back(&batteryVoltage);
+
+	RTConfigScalar afr1("afr1", "S16", 28, 0.1, 0.0);
+	rtconfig.push_back(&afr1);
+
+	RTConfigScalar egoCorrection1("egoCorrection1", "S16", 34, 0.1, 0.0);
+	rtconfig.push_back(&egoCorrection1);
+
+	RTConfigScalar veCurr1("veCurr1", "S16", 50, 0.1, 0.0);
+	rtconfig.push_back(&veCurr1);
+
+	RTConfigScalar iacstep("iacstep", "S16", 54, 1.000, 0.0);
+	rtconfig.push_back(&iacstep);
+
+	RTConfigScalar idleDC("idleDC", "S16", 54, 0.39063, 0.0);
+	rtconfig.push_back(&idleDC);
+
+	// serial_device, file, buffer length, config(above)
 	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);
 	// }}}
 
