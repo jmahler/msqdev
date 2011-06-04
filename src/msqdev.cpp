@@ -19,6 +19,7 @@
 #include <fstream>
 #include <iostream>
 #include <signal.h>
+#include <sstream>
 #include <string>
 #include <sys/types.h>
 #include <unistd.h>
@@ -77,20 +78,32 @@ int main(int argc, char** argv)
 	sigaction(SIGHUP, &sa_update, NULL);
 
 	// {{{ command line arguments
-    if (argc < 2) {
-		cout << " USAGE:\n"
-         	 << "   msqdev <device> [<options>]\n"
-        	 << "   msqdev /dev/ttyUSB0 ./\n"
-			 << " OPTIONS:\n"
-			 << "   -d           directory of files, default './'\n"
-			 << "   -ue          update ecu from files on startup\n"
-			 << "   -uf          update files from ecu on startup\n"
-			 << " SIGNALS:\n"
-			 << "   SIGHUP       triggers update of ecu from files\n";
+	string usage;
+	{
+	stringstream usagess;
+		usagess << " USAGE:\n"
+         	 	<< "   msqdev <device> [<options>]\n"
+        	 	<< "   msqdev /dev/ttyUSB0 ./\n"
+				<< " OPTIONS:\n"
+				<< "   -d           directory of files, default './'\n"
+				<< "   -ue          update ecu from files on startup\n"
+				<< "   -uf          update files from ecu on startup\n"
+				<< "   -h           this help screen\n"
+				<< " SIGNALS:\n"
+				<< "   SIGHUP       triggers update of ecu from files\n";
+		usage = usagess.str();
+	}
 
-        return 1; // error
+    if (argc < 2) {
+		cout << usage;
+        return 1;  // error
     }
+
 	string serial_dev = argv[1];
+	if (serial_dev == "-h") {
+		cout << usage;
+		return 1;  // error
+	}
 
 	string dir = "";
 
