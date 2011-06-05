@@ -59,9 +59,14 @@ for ($i = 0; $i < @col_sel; $i++) {
 	}
 }
 
+$| = 1;
+$skip_first = 1;  # skip any already stored data
+
 # process all remaining lines, and tail the file
 while (1) {
 	while ($line = <IN>) {
+		next if $skip_first;
+
 		@parts = split /\s+/, $line;
 		
 		@vals = ();
@@ -73,6 +78,7 @@ while (1) {
 
 		print "$vals\n";
 	}
+	$skip_first = 0;
 
 	usleep(25e4);    # micro 10^-6 seconds
 	seek(IN, 0, 1);  # reset EOF
