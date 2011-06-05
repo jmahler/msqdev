@@ -74,6 +74,7 @@ int main(int argc, char** argv)
 	sa_update.sa_sigaction = &sig_update;
 	sigemptyset(&sa_update.sa_mask);
 	sa_update.sa_flags = 0;
+	sa_update.sa_flags |= SA_RESTART;
 
 	sigaction(SIGHUP, &sa_update, NULL);
 
@@ -337,8 +338,12 @@ int main(int argc, char** argv)
 			for (int i = 0; i < num_tables; i++) {
 				MSQData *table = tables[i];
 
+				table->readFile();
+
 				if (table->hasChanges()) {
-					table->writeEcu();
+					if (table->writeEcu()) {
+						log("error writeEcu()");
+					}
 				}
 			}
 		} else if (update == file) {
@@ -363,5 +368,5 @@ int main(int argc, char** argv)
 }
 
 static void sig_update(int sig, siginfo_t *siginfo, void *context) {
-	update = file;
+	update = ecu;
 }
