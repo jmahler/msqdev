@@ -156,7 +156,10 @@ class MSQRealTime {
 		 * Read one chunk of data and append it to the output file.
 		 */
 		void readAppend() {
-			serial->cmd_A(num_bytes, buf);
+			if (serial->cmd_A(num_bytes, buf)) {
+				cerr << "cmd_A error in readAppend()\n";
+				return;
+			}
 
 			vector<RTConfig*>::iterator it;
 

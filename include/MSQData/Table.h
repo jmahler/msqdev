@@ -367,8 +367,6 @@ class MSQDataTable : public MSQData
 						if (fabs(eval - fval) < EPSILON) {
 							continue;  // no differences
 						}
-						cout << "X changes\n";
-
 						// de-translate and write a single value
 
 						fval /= mult;
@@ -379,8 +377,10 @@ class MSQDataTable : public MSQData
 
 						_type_val_buf(type, fval, num_bytes, buf);
 
-						serial->cmd_w(idx, offset + j * byte_mult, num_bytes, buf);
-						// TODO - error checking?
+						if (-1 == serial->cmd_w(idx, offset + j * byte_mult, num_bytes, buf)) {
+							cerr << "serial->cmd_w X error\n";
+							return true;  // error
+						}
 					}
 				} else if (Y == i) {
 					for (int j = 0; j < y_size; j++) {
@@ -390,7 +390,6 @@ class MSQDataTable : public MSQData
 						if (fabs(eval - fval) < EPSILON) {
 							continue;
 						}
-						cout << "Y changes\n";
 
 						fval /= mult;
 						fval -= add;
@@ -402,8 +401,10 @@ class MSQDataTable : public MSQData
 
 						_type_val_buf(type, fval, num_bytes, buf);
 
-						serial->cmd_w(idx, offset + ((y_size - 1) - j) * byte_mult, num_bytes, buf);
-						// TODO - error checking?
+						if (-1 == serial->cmd_w(idx, offset + ((y_size - 1) - j) * byte_mult, num_bytes, buf)) {
+							cerr << "serial->cmd_w Y error\n";
+							return true;  // error
+						}
 					}
 				} else if (V == i) {
 					int p = 0;
@@ -426,13 +427,15 @@ class MSQDataTable : public MSQData
 
 							_type_val_buf(type, fval, num_bytes, buf);
 
-							serial->cmd_w(idx, offset + (p * byte_mult), num_bytes, buf);
-							// TODO error checking
+							if (-1 == serial->cmd_w(idx, offset + (p * byte_mult), num_bytes, buf)) {
+								cerr << "serial->cmd_w error\n";
+								return true;  // error
+							}
 						}
 					}
 				}
-
 			}
+			*ecu_data = *file_data;
 
 			return false;  // OK
 		}

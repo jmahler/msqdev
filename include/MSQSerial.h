@@ -49,7 +49,7 @@ class MSQSerial {
 		string dev_file;
 		int devfd;
 
-		/* {{{ sread() */
+		// {{{ sread()
 		/**
 		 * sread() - serial read
 		 *
@@ -85,20 +85,21 @@ class MSQSerial {
 				}
 
 				if (n < 0) {
-					errs++;
 					perror("read failed");
-					return -1; /* error */
+
+					buf = buf_start;  // reset to begining
+					return -1; // error
 				} else if (0 == n) {
 					errs++;
 				} else if (n > 0) {
-					errs = 0; /* reset */
+					errs = 0; // reset
 				}
 			}
-			buf = buf_start;  /* reset to begining */
 
-			return nr; /* OK */
+			buf = buf_start;  // reset to begining
+			return nr; // OK
 		}
-		/* }}} */
+		// }}}
 
 		MSQSerial() {}
 
@@ -234,7 +235,7 @@ class MSQSerial {
 			char* buf;
 			buf = &_buf[0];
 
-			*buf = 114;  /* 'r' */
+			*buf = 114;  // 'r'
 			buf++;
 
 			*buf = 0;
@@ -272,10 +273,10 @@ class MSQSerial {
 			n = sread(devfd, msg, num_bytes, 10);
 			if (n < num_bytes) {
 				printf("num read: %d\n", n);
-				return -1;  /* error */
+				return -1;  // error
 			}
 
-			return n;  /* OK */
+			return n;  // OK
 		}
 		// }}}
 
@@ -308,8 +309,10 @@ class MSQSerial {
 			buf = &_buf[0]; /* reset to begining */
 
 			n = write(devfd, buf, 3);
-			if (n < 3)
+			if (n < 3) {
 				fputs("write of w command failed!\n", stderr);
+				return -1;  // error
+			}
 
 			/* 200 ms delay required when switching pages (or anytime) */
 			usleep(200000);   /* 200 ms -> 200000 us (micro seconds) */
@@ -329,7 +332,7 @@ class MSQSerial {
 			n = write(devfd, buf, 4);
 			if (n < 4) {
 				cerr << "write of r command failed!\n";
-				return false;
+				return -1;  // error
 			}
 
 			for (int i = 0; i < num_bytes; i++) {
@@ -337,11 +340,11 @@ class MSQSerial {
 				bytes++;
 				if (n != 1) {
 					cerr << "cmd_w(), write error\n";
-					return false;
+					return -1;  // error
 				}
 			}
 
-			return true;  // OK
+			return 0;  // OK
 		}
 		// }}}
 
