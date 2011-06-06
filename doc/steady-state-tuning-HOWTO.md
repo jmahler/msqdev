@@ -40,7 +40,7 @@ The general procedure is as follows:
   1. Place the pattern ('XXX') in all entries to be replaced.
   2. Use the pattern substitution to assign a value (see above).
   3. Write out the file (:w).
-  4. Send a SIGHUP to msqdev (:! kill -HUP 'cat pid') to
+  4. Send a SIGHUP to msqdev (kill -HUP 'cat pid') to
 	 write the values to the ecu.
   5. Undo (u) to revert back to the pattern ('XXX').
   6. go to step 2 (repeat)
@@ -52,7 +52,7 @@ which are invalid and should be ignored.
 By monitoring the relevant values it can be determined when the
 data is stable enough to produce valid recordings.
 
-	shell$ rtmoniotr.pl rtdata rpm advance
+	shell$ rtmoniotr.pl rtdata rpm map advance
 
 ## HILL CLIMBING
 
@@ -74,7 +74,7 @@ excludes can be used to exclude the unwanted transient values.
 Filter the real time data and append it to the plotdata.
 This command is started/stopped as needed to include/exclude the data.
 
-	shell$ rtmoniotr.pl rtdata rpm advance >> plotdata
+	shell$ rtmoniotr.pl rtdata advance rpm >> plotdata
 
 The data can be plotted as it is updated by using [feedGnuplot][feedgp].
 
