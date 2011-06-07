@@ -257,6 +257,10 @@ int main(int argc, char** argv)
 	
 	// To configure these items look for the [BurstMode] section
 	// of the MegaSquirt ini file.
+	//
+	// After these are changed the columns in the rtdata file will
+	// be invalid.  Delete the rtdata file and it will be recreated
+	// with the correct columns.
 
 	vector<RTConfig*> rtconfig;
 
@@ -324,6 +328,24 @@ int main(int argc, char** argv)
 
 	RTConfigScalar idleDC("idleDC", "S16", 54, 0.39063, 0.0);
 	rtconfig.push_back(&idleDC);
+
+	RTConfigScalar tpsDOT("tpsDOT", "S16", 58, 0.100, 0.0);
+	rtconfig.push_back(&tpsDOT);
+
+	RTConfigScalar mapDOT("mapDOT", "S16", 60, 1.000, 0.0);
+	rtconfig.push_back(&mapDOT);
+
+	RTConfigScalar dwell("dwell", "U16", 62, 0.0666, 0.0);
+	rtconfig.push_back(&dwell);
+
+	RTConfigScalar mafmap("mafmap", "S16", 64, 0.100, 0.0);
+	rtconfig.push_back(&mafmap);
+
+	RTConfigScalar fuelload("fuelload", "S16", 66, 0.100, 0.0);
+	rtconfig.push_back(&fuelload);
+
+	RTConfigScalar fuelCorrection("fuelCorrection", "S16", 68, 1.000, 0.0);
+	rtconfig.push_back(&fuelCorrection);
 
 	// serial_device, file, buffer length, config(above)
 	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);
