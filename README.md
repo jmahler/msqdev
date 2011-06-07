@@ -44,12 +44,6 @@ See the Gcc man page for more info (man 1 gcc).
 
   [liblookuptable]: https://github.com/jmahler/liblookuptable
 
-## FAQ
-
-**Q:** Where can I ask a question?  
-**A:**
-Send the author an email.
-
 AUTHOR
 ------
 

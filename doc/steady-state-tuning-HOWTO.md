@@ -52,7 +52,13 @@ which are invalid and should be ignored.
 By monitoring the relevant values it can be determined when the
 data is stable enough to produce valid recordings.
 
+To monitor advanceTable1
+
 	shell$ rtmoniotr.pl rtdata rpm map advance
+
+or to monitor veTable1.
+
+	shell$ rtmonitor.pl rtdata rpm fuelload veCurr1 pulseWidth1
 
 ## HILL CLIMBING
 
@@ -74,15 +80,41 @@ excludes can be used to exclude the unwanted transient values.
 Filter the real time data and append it to the plotdata.
 This command is started/stopped as needed to include/exclude the data.
 
+To filter veTable1
+
+	shell$ rtmoniotr.pl rtdata veCurr1 rpm >> plotdata
+
+or to filter advanceTable1
+
 	shell$ rtmoniotr.pl rtdata advance rpm >> plotdata
 
 The data can be plotted as it is updated by using [feedGnuplot][feedgp].
 
+To plot advanceTable1
+
 	shell$ tail -f plotdata | feedGnuplot --points --stream --domain --xlabel advance --ylabel rpm
 
-And afterwards the data can has been recorded it can be plotted again.
+or to plot veTable1
+
+	shell$ tail -f plotdata | feedGnuplot --points --stream --domain --xlabel veCurr1 --ylabel rpm
+
+And afterwards the data can has been recorded can be plotted with essentially
+the same command as previously but without the '--stream' option.
 
 	shell$ cat plotdata | feedGnuplot --points --domain --xlabel advance --ylabel rpm
 
   [feedgp]: https://github.com/dkogan/feedgnuplot
+
+## AUTHOR
+
+Jeremiah Mahler <jmmahler@gmail.com><br>
+<http://www.google.com/profiles/jmmahler#about>
+
+## COPYRIGHT
+
+Copyright &copy; 2011, Jeremiah Mahler.  All Rights Reserved.<br>
+This project is free software and released under
+the [GNU General Public License][gpl].
+
+ [gpl]: http://www.gnu.org/licenses/gpl.html
 
