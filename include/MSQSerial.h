@@ -74,7 +74,7 @@ class MSQSerial {
 			nr = 0;
 
 			while (errs < max_errs) {
-				n = read(fd, buf, 20);
+				n = read(fd, buf, size - nr);
 				buf += n;
 				nr += n;
 
@@ -115,12 +115,14 @@ class MSQSerial {
 		 */
 		MSQSerial(const string _dev_file) {
 			dev_file = _dev_file;
+			devfd = -1;
 		}
 		// }}}
 
 		// {{{ ~MSQSerial
 		~MSQSerial() {
-			close(devfd);
+			if (devfd > -1)
+				close(devfd);
 		}
 		// }}}
 
@@ -272,7 +274,7 @@ class MSQSerial {
 
 			n = sread(devfd, msg, num_bytes, 10);
 			if (n < num_bytes) {
-				printf("num read: %d\n", n);
+				//printf("num read: %d\n", n);
 				return -1;  // error
 			}
 

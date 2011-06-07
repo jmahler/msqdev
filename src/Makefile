@@ -1,6 +1,6 @@
 
 CC=g++
-CFLAGS=-Wall -ansi -pedantic $(INCLUDE)
+CFLAGS=-Wall -g -ansi -pedantic $(INCLUDE)
 INCLUDE=-I../include
 OBJECTS= 
 

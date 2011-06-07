@@ -87,7 +87,6 @@ int main(int argc, char** argv)
 
 	sigaction(SIGUSR1, &sa_burn, NULL);
 
-
 	// {{{ command line arguments
 	string usage;
 	{
@@ -379,6 +378,7 @@ int main(int argc, char** argv)
 				}
 			}
 		} else if (update == file) {
+			cout << "update file\n";
 			update = none;
 			log("updating files from ecu");
 

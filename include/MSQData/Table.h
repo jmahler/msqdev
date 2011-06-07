@@ -118,7 +118,9 @@ class MSQDataTable : public MSQData
 			if (file_data != NULL) {
 				delete file_data;
 				file_data = NULL;
-			} else if (ecu_data != NULL) {
+			}
+
+			if (ecu_data != NULL) {
 				delete ecu_data;
 				ecu_data = NULL;
 			}
@@ -186,10 +188,8 @@ class MSQDataTable : public MSQData
 				}
 				num_bytes = byte_mult * size;
 
-				char* buf;
-				int* vals;
-				buf = new char[num_bytes];
-				vals = new int[size];
+				char* buf = new char[num_bytes];
+				int* vals = new int[size];
 				// The values read are always integers (signed, unsigned, 8, 16),
 				// they will be converted to floats later if needed.
 
