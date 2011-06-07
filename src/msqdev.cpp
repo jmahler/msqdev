@@ -378,7 +378,6 @@ int main(int argc, char** argv)
 				}
 			}
 		} else if (update == file) {
-			cout << "update file\n";
 			update = none;
 			log("updating files from ecu");
 
