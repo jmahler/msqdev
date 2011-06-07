@@ -23,6 +23,7 @@
 
 #include <cmath>  // fabs()
 #include <iostream>
+#include <set>
 
 using namespace std;
 
@@ -61,6 +62,9 @@ class MSQDataTable : public MSQData
 		float v_mult;
 
 		MSQDataTable() {};  // prevent use of the default constructor
+
+		// table_idx'es that have changed and need to be burned
+		set<unsigned char> need_burn;
 
 	public:
 
@@ -381,6 +385,7 @@ class MSQDataTable : public MSQData
 							cerr << "serial->cmd_w X error\n";
 							return true;  // error
 						}
+						need_burn.insert(idx);
 					}
 				} else if (Y == i) {
 					for (int j = 0; j < y_size; j++) {
@@ -405,6 +410,7 @@ class MSQDataTable : public MSQData
 							cerr << "serial->cmd_w Y error\n";
 							return true;  // error
 						}
+						need_burn.insert(idx);
 					}
 				} else if (V == i) {
 					int p = 0;
@@ -431,6 +437,7 @@ class MSQDataTable : public MSQData
 								cerr << "serial->cmd_w error\n";
 								return true;  // error
 							}
+							need_burn.insert(idx);
 						}
 					}
 				}
@@ -438,6 +445,32 @@ class MSQDataTable : public MSQData
 			*ecu_data = *file_data;
 
 			return false;  // OK
+		}
+		// }}}
+
+		// {{{ burnEcu()
+		// NOTE: tables are added to the need_burn set in writeEcu()
+		bool burnEcu() {
+
+			set<unsigned char>::iterator it;
+
+			for (it = need_burn.begin(); it != need_burn.end(); it++) {
+				//printf("burnEcu: '%i'\n", (*it));
+
+				if (serial->cmd_b(*it)) {
+					cerr << "serial->cmd_b error\n";
+					return true;  // error
+				}
+			}
+			need_burn.clear();
+
+			return false;  // OK
+		}
+		// }}}
+
+		// {{{ needBurn
+		bool needBurn() {
+			return (! need_burn.empty());
 		}
 		// }}}
 

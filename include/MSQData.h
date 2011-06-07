@@ -92,6 +92,20 @@ class MSQData {
 		virtual bool writeEcu()=0;
 
 		/**
+		 * Burn the currently stored FILE data to the ecu flash.
+		 *
+		 * @returns true on error, false otherwise
+		 */
+		virtual bool burnEcu()=0;
+
+		/**
+		 * Do any tables need to be burned to flash?
+		 *
+		 * @returns true if yes, false if no
+		 */
+		virtual bool needBurn()=0;
+
+		/**
 		 * Write the currently stored file data to the associated file.
 		 */
 		virtual void writeFile()=0;

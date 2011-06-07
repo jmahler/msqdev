@@ -34,8 +34,9 @@ using namespace std;
 #define LOG true
 
 static void sig_update(int sig, siginfo_t *siginfo, void *context);
+static void sig_burn(int sig, siginfo_t *siginfo, void *context);
 
-enum { none, file, ecu };
+enum { none, file, ecu, burn };
 int update = none;
 
 // {{{ log()
@@ -78,6 +79,15 @@ int main(int argc, char** argv)
 
 	sigaction(SIGHUP, &sa_update, NULL);
 
+	struct sigaction sa_burn;
+	sa_burn.sa_sigaction = &sig_burn;
+	sigemptyset(&sa_burn.sa_mask);
+	sa_burn.sa_flags = 0;
+	sa_burn.sa_flags |= SA_RESTART;
+
+	sigaction(SIGUSR1, &sa_burn, NULL);
+
+
 	// {{{ command line arguments
 	string usage;
 	{
@@ -91,7 +101,8 @@ int main(int argc, char** argv)
 				<< "   -uf          update files from ecu on startup\n"
 				<< "   -h           this help screen\n"
 				<< " SIGNALS:\n"
-				<< "   SIGHUP       triggers update of ecu from files\n";
+				<< "   SIGHUP       triggers update of ecu from files\n"
+				<< "   SIGUSR1      triggers burn of any modified tables\n";
 		usage = usagess.str();
 	}
 
@@ -354,7 +365,6 @@ int main(int argc, char** argv)
 	while (1) {
 		if (update == ecu) {
 			update = none;
-
 			log("updating ecu from files");
 
 			for (int i = 0; i < num_tables; i++) {
@@ -380,6 +390,17 @@ int main(int argc, char** argv)
 					table->writeFile();
 				}
 			}
+		} else if (update == burn) {
+			update = none;
+			log("burning changes to ecu flash");
+
+			for (int i = 0; i < num_tables; i++) {
+				MSQData *table = tables[i];
+
+				if (table->needBurn()) {
+					table->burnEcu();
+				}
+			}
 		} else {
 			rtData.readAppend();
 			usleep(5e5);
@@ -391,4 +412,8 @@ int main(int argc, char** argv)
 
 static void sig_update(int sig, siginfo_t *siginfo, void *context) {
 	update = ecu;
+}
+
+static void sig_burn(int sig, siginfo_t *siginfo, void *context) {
+	update = burn;
 }

@@ -385,5 +385,41 @@ class MSQSerial {
 		}
 		// }}}
 
+		// {{{ cmd_b
+		/**
+		 * Burn the ram copy of a table in to flash memory.
+		 *
+		 * @arg table index
+		 *
+		 * @returns false on success, true on error
+		 */
+		bool cmd_b(const int tbl_idx)
+		{
+			int n;  // read/write counts
+			char _buf[2];
+			char *buf;
+			buf = &_buf[0];
+			
+			*buf = 'b';
+			buf++;
+
+			// can-id
+			*buf = 0;
+			buf++;
+
+			*buf = (unsigned char) tbl_idx;
+
+			buf = &_buf[0]; // reset to begining
+
+			n = write(devfd, buf, 3);
+			if (n < 3)  {
+				cerr << "write of b command failed\n";
+				return true;  // error
+			}
+
+			return false;  // OK
+		}
+		// }}}
+
 };
 
