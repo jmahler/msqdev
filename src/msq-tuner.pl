@@ -36,8 +36,15 @@ my $rtdata_file = "rtdata";
 my $range = 20;   # range (%)
 $range = $range / 100;  # convert % to fraction
 my $num_points = 10;  # number of points in between range
-my $record_time = 5;  # time in seconds to record data after a change
-my $change_delay = 3;  # time in seconds to delay after settings have changed
+
+# Whether the time or the count will trigger a change depends
+# on which is smaller (since they are OR'ed together).
+# Making one very large essentially disables it.
+my $record_time = 30;  # time in seconds to record data after a change
+my $record_count = 70;  # number of points to record after a change
+my $change_delay = 20;   # time in seconds to delay after settings have changed
+my $change_count = 20;  # number of points to skip after a change
+
 my $table_file = 'advanceTable1';
 my $skip_first = 1;  # whether to skip any already stored real time data
 my $table_type = $table_file;  # currently same as file, but this may change
@@ -136,7 +143,9 @@ my @points;
 
 
 my $state_time = time() - 100;  # initial time is long ago to get things started
+my $state_count = 0;
 my $state = 'plan_needed';  	 # plan_needed | record | change_delay
+my $count = 0;
 
 my $last_t;
 
@@ -145,7 +154,9 @@ print "start main()\n" if $DEBUG;
 while (1) {
 
 	# recording, waiting to change to change_delay
-	if ($state eq 'record' and (time() - $state_time > $record_time)) {
+	if ($state eq 'record' and
+			((time() - $state_time > $record_time)
+				 or ($count - $state_count > $record_count))) {
 		# change the values
 
 		$next_val++; 
@@ -164,30 +175,37 @@ while (1) {
 		`kill -HUP \`cat pid\``;
 
 		$state_time = time();
+		$state_count = $count;
 
 		print "state: $state -> change_delay\n" if $DEBUG;
 		$state = 'change_delay';
 	}
 	if ($state eq 'record' and $DEBUG) {
 		my $t = ($record_time - (time() - $state_time));
+		my $c = ($record_count - ($count - $state_count));
+
 		if ($t != $last_t) {
 			$last_t = $t;
-			print "state (record) time left: $t\n"
+			print "state (record) time left, count left: $t, $c\n"
 		}
 	}
 
 
-	if ($state eq 'change_delay' and (time() - $state_time > $change_delay)) {
+	if ($state eq 'change_delay' and
+			((time() - $state_time > $change_delay)
+					or ($count - $state_count > $change_count))) {
 		$state_time = time();
+		$state_count = $count;
 
 		print "state: $state -> record\n" if $DEBUG;
 		$state = 'record';
 	}
 	if ($state eq 'change_delay' and $DEBUG) {
 		my $t = ($change_delay - (time() - $state_time));
+		my $c = ($change_count - ($count - $state_count));
 		if ($t != $last_t) {
 			$last_t = $t;
-			print "state (change_delay) time left: $t\n";
+			print "state (change_delay) time left, count left: $t, $c\n";
 		}
 	}
 
@@ -197,6 +215,7 @@ while (1) {
 		next if $skip_first;
 
 		my @vals = split /\s+/, $line;  # all values
+		$count++;
 		
 		# get the select values
 		my @sel_vals = ();  # select values
