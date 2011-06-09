@@ -42,6 +42,7 @@ my $table_file = 'advanceTable1';
 my $skip_first = 1;  # whether to skip any already stored real time data
 my $table_type = $table_file;  # currently same as file, but this may change
 my $DEBUG = 1;
+my $SEP = ",";
 
 # {{{ setup data sources/sinks
 
@@ -56,7 +57,8 @@ my $table = Text::LookUpTable->load_file($table_file)
 	or die "unable to open table in file '$table_file': $!";
 my $orig_table = $table;
 
-open(PLOT, ">> $plot_data_file")
+die "plot data file '$plot_data_file' already exists!" if (-e $plot_data_file);
+open(PLOT, "> $plot_data_file")
 	or die "unable to open file '$plot_data_file': $!";
 
 open(RTDATA, "< $rtdata_file")
@@ -72,7 +74,7 @@ select($oldfh);
 
 # {{{ configure the type
 my @col_sel;
-my $sx; # offset in col sel of x
+my $sx; # offset in @col_sel of x
 my $sy; #   "     "    "       y
 my $sv; #   "     "    "       value
 if ($table_type eq 'advanceTable1') {
@@ -95,8 +97,7 @@ if ($table_type eq 'advanceTable1') {
 
 # {{{ Read the column names, configure selected positions
 
-# The first line should of the real time data should contain
-# the column names separated by spaces.
+# The first line of the real time data should contain the column names
 my $first_line = <RTDATA>;
 
 my @col_defs = split /\s+/, $first_line;
@@ -117,6 +118,12 @@ for (my $i = 0; $i < @col_sel; $i++) {
 if (@col_selp != @col_sel) {
 	print STDERR "some required data coluns are missing\n";
 	exit 1;
+}
+
+# write the column names to the plot data file
+{
+my $col_names = join $SEP, @col_defs;
+print PLOT "$col_names\n";
 }
 
 # }}}
@@ -199,9 +206,9 @@ while (1) {
 
 		if ($state eq 'record') {
 			# save the values to the PLOT file
-			my $sel_vals_str = join "  ", @sel_vals;
+			my $vals_str = join ",", @vals;
 			#print "record: $sel_vals_str\n" if $DEBUG;
-			print PLOT "$sel_vals_str\n";
+			print PLOT "$vals_str\n";
 		}
 
 		# {{{ build a plan
