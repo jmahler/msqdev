@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use strict;
 
 use Time::HiRes qw(usleep);
 
@@ -27,33 +28,33 @@ use Time::HiRes qw(usleep);
 # be more easily viewed.
 #
 
-$pname = (split /\//, $0)[-1];  # program name without directories
-$usage =  "USAGE:\n"
+my $pname = (split /\//, $0)[-1];  # program name without directories
+my $usage =  "USAGE:\n"
 		 ."  $pname <file> <col1>[ <col2> ...]\n";
 
 if (@ARGV < 2) {
 	die $usage;
 }
 
-$in_file = shift @ARGV;
+my $in_file = shift @ARGV;
 
 open(IN, "< $in_file")
 	or die "unable to open file '$in_file': $!";
 
-@col_sel = @ARGV;  # column selections
+my @col_sel = @ARGV;  # column selections
 
 # first line should contain the column names separated by spaces
-$first_line = <IN>;
+my $first_line = <IN>;
 
-@col_selp;  # selection positions
+my @col_selp;  # selection positions
 
-@col_defs = split /\s+/, $first_line;
+my @col_defs = split /\s+/, $first_line;
 
 # For each selected name, find its associated
 # column position.
-for ($i = 0; $i < @col_sel; $i++) {
-	$sel = $col_sel[$i];
-	for ($j = 0; $j < @col_defs; $j++) {
+for (my $i = 0; $i < @col_sel; $i++) {
+	my $sel = $col_sel[$i];
+	for (my $j = 0; $j < @col_defs; $j++) {
 		if ($sel eq $col_defs[$j]) {
 			push @col_selp, $j;
 		}
@@ -61,21 +62,21 @@ for ($i = 0; $i < @col_sel; $i++) {
 }
 
 $| = 1;
-$skip_first = 1;  # skip any already stored data
+my $skip_first = 1;  # skip any already stored data
 
 # process all remaining lines, and tail the file
 while (1) {
-	while ($line = <IN>) {
+	while (my $line = <IN>) {
 		next if $skip_first;
 
-		@parts = split /\s+/, $line;
+		my @parts = split /\s+/, $line;
 		
-		@vals = ();
-		for ($i = 0; $i < @col_selp; $i++) {
+		my @vals = ();
+		for (my $i = 0; $i < @col_selp; $i++) {
 			push @vals, $parts[$col_selp[$i]];
 		}
 
-		$vals = join " ", @vals;
+		my $vals = join " ", @vals;
 
 		print "$vals\n";
 	}
