@@ -63,7 +63,7 @@ my $plot_data_file = sprintf("plotdata-$table_type-%d%02d%02d.%02d:%02d:%02d", $
 
 my $table = Text::LookUpTable->load_file($table_file)
 	or die "unable to open table in file '$table_file': $!";
-my $orig_table = $table;
+my $orig_table = $table->copy();
 
 die "plot data file '$plot_data_file' already exists!" if (-e $plot_data_file);
 open(PLOT, "> $plot_data_file")
@@ -136,6 +136,18 @@ print PLOT "$col_names\n";
 
 # }}}
 
+# {{{ signal handlers
+
+# Ctrl-C
+$SIG{INT} = sub {
+	print "restoring original table\n" if $DEBUG;
+	$orig_table->save_file();
+	`kill -HUP \`cat pid\``;
+
+	exit 0;
+};
+
+# }}}
 
 # plan variables
 my $next_val = -1;
@@ -269,4 +281,8 @@ while (1) {
 
 	usleep(2e4);    	# slow things down
 }
+
+print "restoring original table\n" if $DEBUG;
+$orig_table->save_file();
+`kill -HUP \`cat pid\``;
 
