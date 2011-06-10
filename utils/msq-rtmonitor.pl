@@ -27,8 +27,9 @@ use Time::HiRes qw(usleep);
 # be more easily viewed.
 #
 
+$pname = (split /\//, $0)[-1];  # program name without directories
 $usage =  "USAGE:\n"
-		 ."  rtmonitor.pl <file> <col1>[ <col2> ...]\n";
+		 ."  $pname <file> <col1>[ <col2> ...]\n";
 
 if (@ARGV < 2) {
 	die $usage;
