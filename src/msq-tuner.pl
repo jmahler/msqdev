@@ -35,7 +35,7 @@ my $usage =  "USAGE:\n"
 my $rtdata_file = "rtdata";
 my $range = 20;   # range (%)
 $range = $range / 100;  # convert % to fraction
-my $num_points = 10;  # number of points in between range
+my $num_points = 5;  # number of points in between range
 
 # Whether the time or the count will trigger a change depends
 # on which is smaller (since they are OR'ed together).
@@ -45,7 +45,8 @@ my $record_count = 70;  # number of points to record after a change
 my $change_delay = 20;   # time in seconds to delay after settings have changed
 my $change_count = 20;  # number of points to skip after a change
 
-my $table_file = 'advanceTable1';
+#my $table_file = 'advanceTable1';
+my $table_file = 'veTable1';
 my $skip_first = 1;  # whether to skip any already stored real time data
 my $table_type = $table_file;  # currently same as file, but this may change
 my $DEBUG = 1;
@@ -57,7 +58,7 @@ my $SEP = ",";
 my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
 $year += 1900;
 $month += 1;
-my $plot_data_file = sprintf("plotdata-%d%02d%02d.%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+my $plot_data_file = sprintf("plotdata-$table_type-%d%02d%02d.%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
 
 
 my $table = Text::LookUpTable->load_file($table_file)
