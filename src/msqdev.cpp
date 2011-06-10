@@ -301,7 +301,7 @@ int main(int argc, char** argv)
 	RTConfigScalar afrtgt1("afrtgt1", "U08", 12, 0.1, 0);
 	rtconfig.push_back(&afrtgt1);
    	// afrtgt2          = scalar, U08,   13, "AFR", 0.1, 0.0
-	RTConfigScalar afrtgt2("afrtgt1", "U08", 13, 0.1, 0);
+	RTConfigScalar afrtgt2("afrtgt2", "U08", 13, 0.1, 0);
 	rtconfig.push_back(&afrtgt2);
 
 	RTConfigScalar barometer("barometer", "S16", 16, 0.1, 0);
@@ -310,12 +310,12 @@ int main(int argc, char** argv)
 	RTConfigScalar map("map", "S16", 18, 0.1, 0);
 	rtconfig.push_back(&map);
 
-	// Celsius
-	RTConfigScalar mat("mat", "S16", 18, 0.05555, -320.0);
+	RTConfigScalar mat("mat", "S16", 20, 0.05555, -320.0); // degC
+	//RTConfigScalar mat("mat", "S16", 20, 0.1, 0.0);  // degF
 	rtconfig.push_back(&mat);
 
-	// Celsius
-	RTConfigScalar coolant("coolant", "S16", 18, 0.05555, -320.0);
+	RTConfigScalar coolant("coolant", "S16", 22, 0.05555, -320.0); // degC
+	//RTConfigScalar coolant("coolant", "S16", 22, 0.1, 0.0); // degF
 	rtconfig.push_back(&coolant);
 
 	RTConfigScalar tps("tps", "S16", 24, 0.1, 0.0);
