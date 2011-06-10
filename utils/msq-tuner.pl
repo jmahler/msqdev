@@ -26,31 +26,118 @@ use strict;
 use Text::LookUpTable;
 use Time::HiRes qw(usleep);
 
-my $usage =  "USAGE:\n"
-		 ."  msq-tuner.pl <table> -r <range %> [-d <rtdata>]\n"
-		 ."\n"
-		 ."  msq-tuner.pl veTable -r 10\n";
+# {{{ @ARGV
 
-# TODO - config from command line
-my $rtdata_file = "rtdata";
-my $range = 20;   # range (%)
-$range = $range / 100;  # convert % to fraction
-my $num_points = 5;  # number of points in between range
+# first define the default values, then
+# process @ARGV for any changes
+
+# default values
+my $rtdata_file = "rtdata"; # real time data file
+
+my $range = 20;   			# range (%) to vary the values by
+my $num_points = 5;  		# number of points in between range
 
 # Whether the time or the count will trigger a change depends
 # on which is smaller (since they are OR'ed together).
 # Making one very large essentially disables it.
-my $record_time = 30;  # time in seconds to record data after a change
-my $record_count = 70;  # number of points to record after a change
-my $change_delay = 20;   # time in seconds to delay after settings have changed
-my $change_count = 20;  # number of points to skip after a change
+my $record_time = 30;		# time in seconds to record data after a change
+my $record_count = 70;  	# number of points to record after a change
+my $change_delay = 20;		# time in seconds to delay after settings have changed
+my $change_count = 20;		# number of points to skip after a change
 
 #my $table_file = 'advanceTable1';
 my $table_file = 'veTable1';
+my $DEBUG = 1;
+
 my $skip_first = 1;  # whether to skip any already stored real time data
 my $table_type = $table_file;  # currently same as file, but this may change
-my $DEBUG = 1;
 my $SEP = ",";
+
+# usage
+my $pname = (split /\//, $0)[-1];  # name of this program without spaces
+my $usage = <<"HERE";
+  USAGE:
+	$pname [<options>]
+
+  OPTIONS:      [default value]  description
+
+    -t          [$table_file] type
+                veTable1 | advanceTable1
+    -rd         [$rtdata_file] real time data file
+
+    -r          [$range] range (%) to vary values
+    -n          [$num_points] number of points in the range
+
+    -rt         [$record_time] time (seconds) to record data
+    -rc         [$record_count] count (points) to record
+                whichever is shorter (time or number) will end recording
+
+    -ct         [$change_delay] time (seconds) to delay after a change
+    -cc         [$change_count] count (points) to delay after a change
+                whichever is shorter (time or number) will end delay
+
+    -d          [$DEBUG] enable debugging (1) or disable (0)
+    -h          this screen
+HERE
+
+# process @ARGV
+{
+my $s1;
+my $s2;
+my $i;
+
+# utility for checking a required second argument
+my $req_arg_fn = sub {
+	my $op = shift;
+
+	if (($i + 1) >= @ARGV) {
+		print STDERR "option '$op' requires an argument. See help ($pname -h)\n";
+		#print STDERR $usage;
+		exit 1;
+	}
+
+	$i++;  # skip the second argument during the next iteration
+
+	return $ARGV[$i];  # return the second argument
+};
+
+for ($i = 0; $i < @ARGV; $i++) {
+	$s1 = $ARGV[$i];
+
+    if ($s1 eq '-h') {
+		print $usage;
+		exit;
+	} elsif ($s1 eq '-t') {
+        $table_file = $req_arg_fn->('-t');
+    } elsif ($s1 eq '-rd') {
+        $rtdata_file = $req_arg_fn->('-rd');
+    } elsif ($s1 eq '-r') {
+        $range = $req_arg_fn->('-r');
+    } elsif ($s1 eq '-n') {
+        $num_points = $req_arg_fn->('-n');
+    } elsif ($s1 eq '-rt') {
+        $record_time = $req_arg_fn->('-rt');
+    } elsif ($s1 eq '-rc') {
+        $record_count = $req_arg_fn->('-rc');
+    } elsif ($s1 eq '-ct') {
+        $change_delay = $req_arg_fn->('-ct');
+    } elsif ($s1 eq '-cc') {
+        $change_count = $req_arg_fn->('-cc');
+    } elsif ($s1 eq '-d') {
+        $DEBUG = $req_arg_fn->('-d');
+    } else {
+		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
+		exit 1;
+    }
+}
+}
+
+
+# The range is given as a percent(%) but in all the calculations
+# it is used as a fraction.
+# Here it is converted to a fraction to make the calculations simpler.
+$range = $range / 100;
+# }}}
 
 # {{{ setup data sources/sinks
 
@@ -62,15 +149,15 @@ my $plot_data_file = sprintf("plotdata-$table_type-%d%02d%02d.%02d:%02d:%02d", $
 
 
 my $table = Text::LookUpTable->load_file($table_file)
-	or die "unable to open table in file '$table_file': $!";
+	or die "unable to open table in file '$table_file': $!\n";
 my $orig_table = $table->copy();
 
 die "plot data file '$plot_data_file' already exists!" if (-e $plot_data_file);
 open(PLOT, "> $plot_data_file")
-	or die "unable to open file '$plot_data_file': $!";
+	or die "unable to open file '$plot_data_file': $!\n";
 
 open(RTDATA, "< $rtdata_file")
-	or die "unable to open file '$rtdata_file': $!";
+	or die "unable to open file '$rtdata_file': $!\n";
 
 $| = 1;  # flush STDOUT after every print
 
