@@ -373,3 +373,16 @@ print "restoring original table\n" if $DEBUG;
 $orig_table->save_file();
 `kill -HUP \`cat pid\``;
 
+close PLOT;
+close RTDATA;
+
+
+print "Do you want to restart? [Y/n] ";
+my $cmd = <STDIN>;
+chomp($cmd);
+
+if ($cmd ne "n") {
+    exec($0, @ARGV)
+        or die "unable to exec '$0': $!\n";
+}
+
