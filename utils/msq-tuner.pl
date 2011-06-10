@@ -25,6 +25,7 @@ use strict;
 
 use Text::LookUpTable;
 use Time::HiRes qw(usleep);
+use IO::Select;
 
 # {{{ @ARGV
 
@@ -57,6 +58,7 @@ my $SEP = ",";
 my $pname = (split /\//, $0)[-1];  # name of this program without spaces
 my $usage = <<"HERE";
   USAGE:
+
 	$pname [<options>]
 
   OPTIONS:      [default value]  description
@@ -78,6 +80,11 @@ my $usage = <<"HERE";
 
     -d          [$DEBUG] enable debugging (1) or disable (0)
     -h          this screen
+
+  RUNNING COMMANDS:
+
+   ENTER        pause/resume recording
+   Ctrl-C       quit
 HERE
 
 # process @ARGV
@@ -139,7 +146,7 @@ for ($i = 0; $i < @ARGV; $i++) {
 $range = $range / 100;
 # }}}
 
-# {{{ setup data sources/sinks
+# {{{ setup data sources/sinks (filehandles)
 
 # get a time stamp for creating a unique plot file
 my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
@@ -164,6 +171,9 @@ $| = 1;  # flush STDOUT after every print
 my $oldfh = select(PLOT);
 $| = 1;  # flush PLOT after every print
 select($oldfh);
+
+my $s = IO::Select->new();
+$s->add(\*STDIN);
 
 # }}}
 
@@ -251,7 +261,26 @@ my $last_t;
 
 # main loop
 print "start main()\n" if $DEBUG;
+
+print "Press ENTER to pause/resume recording\n";
+print "Press Ctrl-C to quit\n";
+
 while (1) {
+
+	if ($s->can_read(0)) {
+		my $t1 = time();
+		<STDIN>;  # read and discard
+		print "PAUSED, press ENTER to resume.\n";
+		<STDIN>;  # wait for ENTER
+
+		# Pausing disrupts the time.
+		# Shift it forward the amount paused.
+		my $delay = time() - $t1;
+		$state_time += $delay;
+
+		# skip all the data during the pause
+		$skip_first = 1;
+	}
 
 	# recording, waiting to change to change_delay
 	if ($state eq 'record' and
