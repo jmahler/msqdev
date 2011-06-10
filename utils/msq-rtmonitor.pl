@@ -54,10 +54,18 @@ my @col_defs = split /\s+/, $first_line;
 # column position.
 for (my $i = 0; $i < @col_sel; $i++) {
 	my $sel = $col_sel[$i];
-	for (my $j = 0; $j < @col_defs; $j++) {
+	my $j = 0;
+	for ($j = 0; $j < @col_defs; $j++) {
 		if ($sel eq $col_defs[$j]) {
 			push @col_selp, $j;
+			last;
 		}
+	}
+	if ($j == @col_defs) {
+		print STDERR "Column '$sel' was not found.\n".
+		  			 "  Check the columns in the rtdata (head -n 1 rtdata) ".
+					   "and try again.\n";
+		exit 1;
 	}
 }
 
