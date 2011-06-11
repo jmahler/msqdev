@@ -24,6 +24,7 @@
 #include <cmath>  // fabs()
 #include <iostream>
 #include <set>
+#include <unistd.h> // sleep
 
 using namespace std;
 
@@ -273,9 +274,29 @@ class MSQDataTable : public MSQData
 		// }}}
 
 		// {{{ readFile()
-		void readFile() {
-			// TODO - error handling?
-			file_data->load_file();
+		bool readFile() {
+			int n = 0;  // number of errors
+			int max_err = 5;
+
+			while (1) {
+				if (! file_data->load_file()) {
+					n++;
+
+					if (n >= max_err) {
+						return true; // error
+					}
+
+					int s_left = 1;
+					while ((s_left = sleep(s_left)) > 0) {}
+					// loop needed in case it is interrupted
+					// if there is an excessive number of interrupts
+					// it will get stuck here.
+				} else {
+					break;  // OK
+				}
+			}
+
+			return false; // OK
 		}
 		// }}}
 

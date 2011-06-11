@@ -369,7 +369,10 @@ int main(int argc, char** argv)
 			for (int i = 0; i < num_tables; i++) {
 				MSQData *table = tables[i];
 
-				table->readFile();
+				if (table->readFile()) {
+					cerr << "hard fault trying to read table\n";
+					exit(1);
+				}
 
 				if (table->hasChanges()) {
 					if (table->writeEcu()) {

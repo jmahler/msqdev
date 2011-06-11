@@ -81,8 +81,10 @@ class MSQData {
 		/**
 		 * Read the data from its associated file and store
 		 * it internally.
+		 *
+		 * @returns true on error, false otherwise
 		 */
-		virtual void readFile()=0;
+		virtual bool readFile()=0;
 
 		/**
 		 * Write the currently stored FILE data to the ecu.
