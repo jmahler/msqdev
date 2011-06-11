@@ -372,13 +372,13 @@ class MSQSerial {
 			int n;  // read/write counts
 			
 			n = write(devfd, "A", 1);
-			if (n < 0)  {
+			if (n != 1)  {
 				cerr << "write of A command failed\n";
 				return true;  // error
 			}
 
 			n = sread(devfd, buf, num_bytes, 5);
-			if (n < 0) {
+			if (n != num_bytes) {
 				cerr << "error reading result of A command\n";
 				return true;  // error
 			}
