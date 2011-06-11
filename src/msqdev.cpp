@@ -75,7 +75,7 @@ int main(int argc, char** argv)
 	sa_update.sa_sigaction = &sig_update;
 	sigemptyset(&sa_update.sa_mask);
 	sa_update.sa_flags = 0;
-	sa_update.sa_flags |= SA_RESTART;
+	//sa_update.sa_flags |= SA_RESTART;
 
 	sigaction(SIGHUP, &sa_update, NULL);
 
@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 	sa_burn.sa_sigaction = &sig_burn;
 	sigemptyset(&sa_burn.sa_mask);
 	sa_burn.sa_flags = 0;
-	sa_burn.sa_flags |= SA_RESTART;
+	//sa_burn.sa_flags |= SA_RESTART;
 
 	sigaction(SIGUSR1, &sa_burn, NULL);
 

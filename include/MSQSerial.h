@@ -61,38 +61,44 @@ class MSQSerial {
 		 */
 		int sread(int fd, char* buf, int size, const int max_errs) {
 			char* buf_start = buf;
-			int errs = 0;
-			int nr = 0;
-			int n;
+			int errs = 0;  // number of errors
+			int nr = 0;    // total num read
+			int n; 		   // sing num read or possibly error
 
-			/*
-			fcntl(devfd, F_SETFL, FNDELAY);
-			fcntl(devfd, F_SETFL, 0);
-			*/
+			//fcntl(devfd, F_SETFL, FNDELAY);
 			fcntl(fd, F_SETFL, 0);
-
-			nr = 0;
 
 			while (errs < max_errs) {
 				n = read(fd, buf, size - nr);
-				buf += n;
-				nr += n;
 
 				//printf("read: %d\n", n);
 
-				if (size == nr) {
-					break;
-				}
+				if (n < 0) {  // an error
+					errs++;
 
-				if (n < 0) {
-					perror("read failed");
+					if (errno == EINTR) {
+						//perror("EINTR error");
+						// see read(2) for a description of EINTR
+					} else {
+						// some error we are not prepared to handle
+						perror("read failed");
 
-					buf = buf_start;  // reset to begining
-					return -1; // error
+						buf = buf_start;  // reset to begining
+						return -1; // error
+					}
 				} else if (0 == n) {
 					errs++;
 				} else if (n > 0) {
+					// got some good data
+
 					errs = 0; // reset
+
+					buf += n;
+					nr += n;
+				}
+
+				if (size == nr) {
+					break;
 				}
 			}
 
