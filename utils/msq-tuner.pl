@@ -38,13 +38,15 @@ my $rtdata_file = "rtdata"; # real time data file
 my $range = 20;   			# range (%) to vary the values by
 my $num_points = 5;  		# number of points in between range
 
+my $point_range = 1;		# range, points near current range
+
 # Whether the time or the count will trigger a change depends
 # on which is smaller (since they are OR'ed together).
 # Making one very large essentially disables it.
 my $record_time = 30;		# time in seconds to record data after a change
-my $record_count = 70;  	# number of points to record after a change
+my $record_count = 100;  	# number of points to record after a change
 my $change_delay = 20;		# time in seconds to delay after settings have changed
-my $change_count = 20;		# number of points to skip after a change
+my $change_count = 40;		# number of points to skip after a change
 
 #my $table_file = 'advanceTable1';
 my $table_file = 'veTable1';
@@ -70,6 +72,10 @@ my $usage = <<"HERE";
     -r          [$range] range (%) to vary values
     -n          [$num_points] number of points in the range
 
+    -pr         [$point_range] range, number of points around current point
+                A larger range causes more points to be changed
+                but also results in the change taking longer.
+
     -rt         [$record_time] time (seconds) to record data
     -rc         [$record_count] count (points) to record
                 whichever is shorter (time or number) will end recording
@@ -85,6 +91,15 @@ my $usage = <<"HERE";
 
    ENTER        pause/resume recording
    Ctrl-C       quit
+
+  EXAMPLES:
+
+   # to record all the debug output use 'tee'
+   $pname | tee tune.log
+
+   # or with a time stamped file
+   $pname -pr 1 | tee tuner_log-`date +%Y%m%d.%H:%M:%S` 
+
 HERE
 
 # process @ARGV
@@ -122,6 +137,8 @@ for ($i = 0; $i < @ARGV; $i++) {
         $range = $req_arg_fn->('-r');
     } elsif ($s1 eq '-n') {
         $num_points = $req_arg_fn->('-n');
+    } elsif ($s1 eq '-pr') {
+        $point_range = $req_arg_fn->('-pr');
     } elsif ($s1 eq '-rt') {
         $record_time = $req_arg_fn->('-rt');
     } elsif ($s1 eq '-rc') {
@@ -374,7 +391,7 @@ while (1) {
 
 			# lookup points around current x, y
 			# lookup_points(x_val, y_val, range)
-			@points = $table->lookup_points($cur_x_val, $cur_y_val, 3);
+			@points = $table->lookup_points($cur_x_val, $cur_y_val, $point_range);
 
 			my $start_val = $cur_val - ($cur_val * $range);
 			my $end_val = $cur_val + ($cur_val * $range);
