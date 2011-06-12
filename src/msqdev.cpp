@@ -409,8 +409,7 @@ int main(int argc, char** argv)
 			// It will work without at delay but it is
 			// slowed down with the delay to reduce
 			// the amount of data.
-			usleep(1e5);
-
+			//usleep(1e5);
 		}
 	}
 
