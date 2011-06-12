@@ -63,6 +63,8 @@ my $usage = <<"HERE";
 
 	$pname [<options>]
 
+	  plot data is output to plotdata-<table name>-<time stamp>
+
   OPTIONS:      [default value]  description
 
     -t          [$table_file] type

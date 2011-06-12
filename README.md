@@ -11,26 +11,18 @@ msqdev provides file based control of tables/settings in a [MegaSquirt][megasqui
 This design is analogous to the way that Linux provides access
 to its devices using files and directories under /dev.
 
-This design has several benefits compared to gui interfaces
-such as: [MegaTune][megatune], [TunerStudio][tunerstudio] and [MegaTunix][megatunix].
+There are several programs included with this package.
 
-  * simple - Changing settings and reading data is as easy as editing
-    and reading from a text file.
+ * msqdev - Creates the communication interface between the files
+   and the [Megasquirt][megasquirt] ecu.
 
-  * experimentation - Experimenting with settings is easily accomplished
-	by writing programs that edit text files.
+ * msq-rtmonitor - Displays the selected values of incoming real time data.
 
-  * compatibility - All settings are in text files and upgrades between
-    version can be accomplished by writing scripts that convert these files.
+ * msq-tuner - Varies values in a table at the current position
+   and records data to be analyzed.
+   (steady state tuning)
 
-  * embeddable - The daemon is small and no gui libraries are required
-    making it possible to run it on phones or other devices.
-
- [megasquirt]: http://www.megasquirt.info
- [tunerstudio]: http://www.efianalytics.com/TunerStudio/
- [megatunix]: http://megatunix.sourceforge.net
- [msextra]: http://www.msextra.com
- [megatune]: http://www.megasquirt.info/megatune.htm
+For more specific information see the programs help (-h) output.
 
 INSTALLATION
 ------------
@@ -58,4 +50,11 @@ This project is free software and released under
 the [GNU General Public License][gpl].
 
  [gpl]: http://www.gnu.org/licenses/gpl.html
+
+ [megasquirt]: http://www.megasquirt.info
+ [tunerstudio]: http://www.efianalytics.com/TunerStudio/
+ [megatunix]: http://megatunix.sourceforge.net
+ [msextra]: http://www.msextra.com
+ [megatune]: http://www.megasquirt.info/megatune.htm
+
 

@@ -29,8 +29,21 @@ use Time::HiRes qw(usleep);
 #
 
 my $pname = (split /\//, $0)[-1];  # program name without directories
-my $usage =  "USAGE:\n"
-		 ."  $pname <file> <col1>[ <col2> ...]\n";
+my $usage =  <<"USAGE";
+  USAGE:
+    $pname <file> <col1>[ <col2> ...]
+
+  EXAMPLES:
+
+    # advanceTable1 tuning
+    # 'advance' should change after each modification and
+    # 'tps' should be kept stable for steady state tuning.
+    $pname rtdata rpm map advance tps
+
+    # veTable1 tuning
+    $pname rtdata rpm fuelload veCurr1 tps
+
+USAGE
 
 if (@ARGV < 2) {
 	die $usage;
