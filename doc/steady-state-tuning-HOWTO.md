@@ -54,11 +54,11 @@ data is stable enough to produce valid recordings.
 
 To monitor advanceTable1
 
-	shell$ msq-rtmoniotr.pl rtdata rpm map advance
+	shell$ msq-rtmonitor rtdata rpm map advance
 
 or to monitor veTable1.
 
-	shell$ msq-rtmonitor.pl rtdata rpm fuelload veCurr1 pulseWidth1
+	shell$ msq-rtmonitor rtdata rpm fuelload veCurr1 pulseWidth1
 
 ## HILL CLIMBING
 
@@ -73,7 +73,7 @@ is also record so that it can be analyzed/plotted afterwards.
 
 The file "rtdata" stores all incoming data points but only
 a subset of these are needed.
-To filter these the msq-rtmonitor.pl program is used.
+To filter these the msq-rtmonitor program is used.
 Also, by starting and stopping this program this
 excludes can be used to exclude the unwanted transient values.
 
@@ -82,11 +82,11 @@ This command is started/stopped as needed to include/exclude the data.
 
 To filter veTable1
 
-	shell$ rtmoniotr.pl rtdata veCurr1 rpm >> plotdata
+	shell$ msq-rtmonitor rtdata veCurr1 rpm >> plotdata
 
 or to filter advanceTable1
 
-	shell$ rtmoniotr.pl rtdata advance rpm >> plotdata
+	shell$ msq-rtmonitor rtdata advance rpm >> plotdata
 
 The data can be plotted as it is updated by using [feedGnuplot][feedgp].
 
