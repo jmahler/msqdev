@@ -272,6 +272,7 @@ my @left_write_vals;
 my @right_write_vals;
 my $left_else_right = 1;  # left
 my @points;
+my $center_point;
 
 
 my $state_time = time() - 100;  # initial time is long ago to get things started
@@ -398,7 +399,7 @@ PAUSED
 	}
 	# }}}
 
-	# {{{ get all new real time data, save to plot file
+	# {{{ get all new real time data, save to plot file, build plan, etc
 	while (my $line = <RTDATA>) {
 		next if $skip_first;
 
@@ -418,6 +419,31 @@ PAUSED
 			print PLOT "$vals_str\n";
 		}
 
+		# {{{ divergence indicator
+		# A +,-,= is printed to indicate whether the current point
+		# needs to be increased or decreased in order to re-align
+		# with the center point.
+		# Ideally the entire data sample would be taken at the center
+		# point but this can be difficult.
+		if ($state eq 'record' or $state eq 'change_delay') {
+			my $cur_x_val = $sel_vals[$sx];
+			my $cur_y_val = $sel_vals[$sy];
+			my $cur_val = $sel_vals[$sv];
+
+			my $cur_point = ($table->lookup_points($cur_x_val, $cur_y_val, 0))[0];
+
+			if ($cur_point->[0] < $center_point->[0]
+					or $cur_point->[1] < $center_point->[1]) {
+				print "+";
+			} elsif ($cur_point->[0] > $center_point->[0]
+					or $cur_point->[1] > $center_point->[1]) {
+				print "-";
+			} else {
+				print "=";
+			}
+		}
+		# }}}
+
 		# {{{ build a plan
 		if ($state eq 'plan_needed') {
 			print "building a plan\n" if $DEBUG;
@@ -434,6 +460,7 @@ PAUSED
 			# lookup points around current x, y
 			# lookup_points(x_val, y_val, range)
 			@points = $table->lookup_points($cur_x_val, $cur_y_val, $point_range);
+			$center_point = ($table->lookup_points($cur_x_val, $cur_y_val, 0))[0];
 
 			# to conceptualize, think of these numbers on the number
 			# line and moving towards the left or right.
