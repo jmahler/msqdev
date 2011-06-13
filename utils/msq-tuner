@@ -267,7 +267,10 @@ $SIG{INT} = sub {
 
 # plan variables
 my $next_val = -1;
-my @write_vals;  # values to write to the map
+# values to write to the map
+my @left_write_vals;
+my @right_write_vals;
+my $left_else_right = 1;  # left
 my @points;
 
 
@@ -277,6 +280,7 @@ my $state = 'plan_needed';  	 # plan_needed | record | change_delay
 my $count = 0;
 
 my $last_t;
+my $force_right = 0;
 
 # main loop
 print "start main()\n" if $DEBUG;
@@ -286,11 +290,31 @@ print "Press Ctrl-C to quit\n";
 
 while (1) {
 
+	# {{{ ENTER menu
 	if ($s->can_read(0)) {
 		my $t1 = time();
 		<STDIN>;  # read and discard
-		print "PAUSED, press ENTER to resume.\n";
-		<STDIN>;  # wait for ENTER
+print <<"PAUSED";
+	PAUSED: ENTER resume, 'r' reverse, 'a' abort
+PAUSED
+		my $cmd = <STDIN>;  # wait for ENTER
+		chomp($cmd);
+
+		if ($cmd eq 'a') {
+			print "aborting\n" if $DEBUG;
+			last;
+		} elsif ($cmd eq 'r') {
+			print "reversing\n" if $DEBUG;
+			if ($left_else_right) {
+				$force_right = 1;
+			} else {
+				# cant reverse right to left, aborting
+				last;
+			}
+		} elsif ($cmd ne '') {
+			print "unknown command '$cmd', assuming resume\n";
+		}
+		# else resume
 
 		# Pausing disrupts the time.
 		# Shift it forward the amount paused.
@@ -300,20 +324,35 @@ while (1) {
 		# skip all the data during the pause
 		$skip_first = 1;
 	}
+	# }}}
 
-	# recording, waiting to change to change_delay
-	if ($state eq 'record' and
-			((time() - $state_time > $record_time)
-				 or ($count - $state_count > $record_count))) {
-		# change the values
+	# {{{ if (time) { set the next value }
+	if ($state eq 'record'
+			and ((time() - $state_time > $record_time)
+				 or ($count - $state_count > $record_count)
+				 or $force_right)) {
 
 		$next_val++; 
 
 		# quit unless there are more values left
-		last unless ($next_val < @write_vals);
+		if ($left_else_right
+				and (($next_val >= @left_write_vals) or $force_right)) {
+			# switch from left to right
+			$left_else_right = 0;  # right
+			$next_val = 0;  # reset
+			$force_right = 0;  # clear flag
+		} elsif ((! $left_else_right) and ($next_val >= @right_write_vals)) {
+			last;  # done
+		}
 
-		my $write_val = $write_vals[$next_val];
-		print "next val: $write_val\n" if $DEBUG;
+		my $write_val;
+		if ($left_else_right) {
+			$write_val = $left_write_vals[$next_val];
+			print "next left val: $write_val\n" if $DEBUG;
+		} else {
+			$write_val = $right_write_vals[$next_val];
+			print "next right val: $write_val\n" if $DEBUG;
+		}
 
 		# write the new values
 		foreach my $point (@points) {
@@ -337,8 +376,9 @@ while (1) {
 			print "state (record) time left, count left: $t, $c\n"
 		}
 	}
+	# }}}
 
-
+	# {{{ change_delay
 	if ($state eq 'change_delay' and
 			((time() - $state_time > $change_delay)
 					or ($count - $state_count > $change_count))) {
@@ -356,9 +396,9 @@ while (1) {
 			print "state (change_delay) time left, count left: $t, $c\n";
 		}
 	}
+	# }}}
 
-
-	# get all new real time data, save to plot file
+	# {{{ get all new real time data, save to plot file
 	while (my $line = <RTDATA>) {
 		next if $skip_first;
 
@@ -395,15 +435,29 @@ while (1) {
 			# lookup_points(x_val, y_val, range)
 			@points = $table->lookup_points($cur_x_val, $cur_y_val, $point_range);
 
-			my $start_val = $cur_val - ($cur_val * $range);
-			my $end_val = $cur_val + ($cur_val * $range);
-			my $inc = ($end_val - $start_val) / $num_points;
+			# to conceptualize, think of these numbers on the number
+			# line and moving towards the left or right.
+			my $left_val = $cur_val - ($cur_val * $range);
+			my $right_val = $cur_val + ($cur_val * $range);
+			my $inc = ($right_val - $left_val) / $num_points;
 			$inc = 0.01 if ($inc < 0.01);  # make the values sane
-			print "plan: start=$start_val, end=$end_val, inc=$inc\n" if $DEBUG;
+			print "plan: left=$left_val, right=$right_val, inc=$inc\n" if $DEBUG;
 
-			for (my $i = $start_val; $i <= $end_val; $i += $inc) {
-				push @write_vals, $i;
+			# leftward from center values
+			# current is included
+			# to exclude use ($i = $cur_val - $inc)
+			for (my $i = $cur_val; $i >= $left_val; $i -= $inc) {
+				push @left_write_vals, $i;
 			}
+			print "  left vals: " . (join ", ", @left_write_vals) . "\n" if $DEBUG;
+
+			# rightward from center values
+			# current is included
+			# to exclude use ($i = $cur_val + $inc)
+			for (my $i = $cur_val; $i <= $right_val; $i += $inc) {
+				push @right_write_vals, $i;
+			}
+			print "  right vals: " . (join ", ", @right_write_vals) . "\n" if $DEBUG;
 
 			print "state: $state -> record\n" if $DEBUG;
 			$state = 'record';
@@ -413,6 +467,7 @@ while (1) {
 	}
 	$skip_first = 0;
 	seek(RTDATA, 0, 1); # reset EOF
+	# }}}
 
 	usleep(2e4);    	# slow things down
 }
