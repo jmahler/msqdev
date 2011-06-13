@@ -35,9 +35,11 @@ using namespace std;
 
 static void sig_update(int sig, siginfo_t *siginfo, void *context);
 static void sig_burn(int sig, siginfo_t *siginfo, void *context);
+static void sig_quit(int sig, siginfo_t *siginfo, void *context);
 
 enum { none, file, ecu, burn };
 int update = none;
+bool quit = false;
 
 // {{{ log()
 /*
@@ -71,11 +73,11 @@ void log(string msg) {
 
 int main(int argc, char** argv)
 {
+	// {{{ signals 
 	struct sigaction sa_update;
 	sa_update.sa_sigaction = &sig_update;
 	sigemptyset(&sa_update.sa_mask);
 	sa_update.sa_flags = 0;
-	//sa_update.sa_flags |= SA_RESTART;
 
 	sigaction(SIGHUP, &sa_update, NULL);
 
@@ -83,9 +85,17 @@ int main(int argc, char** argv)
 	sa_burn.sa_sigaction = &sig_burn;
 	sigemptyset(&sa_burn.sa_mask);
 	sa_burn.sa_flags = 0;
-	//sa_burn.sa_flags |= SA_RESTART;
 
 	sigaction(SIGUSR1, &sa_burn, NULL);
+
+	struct sigaction sa_quit;
+	sa_quit.sa_sigaction = &sig_quit;
+	sigemptyset(&sa_quit.sa_mask);
+	sa_quit.sa_flags = 0;
+
+	sigaction(SIGINT, &sa_quit, NULL);
+	sigaction(SIGTERM, &sa_quit, NULL);
+	// }}}
 
 	// {{{ command line arguments
 	string usage;
@@ -191,7 +201,10 @@ int main(int argc, char** argv)
 			"RPM", "map(%)"  	// title (without spaces!)
 			);
 
-	advanceTable1.readEcu();
+	if (advanceTable1.readEcu()) {
+		log("readEcu(), error reading advanceTable1\n");
+		return(1);
+	}
 	advanceTable1.readFile();
 	// }}}
 
@@ -221,7 +234,10 @@ int main(int argc, char** argv)
 			"RPM", "FuelLoad(%)"  	// title (without spaces!)
 			);
 
-	veTable1.readEcu();
+	if (veTable1.readEcu()) {
+		log("readEcu(), error reading veTable1\n");
+		return(1);
+	}
 	veTable1.readFile();
 	// }}}
 
@@ -255,7 +271,10 @@ int main(int argc, char** argv)
 			"RPM", "map(Kpa)"  	// title (without spaces!)
 			);
 
-	afrTable1.readEcu();
+	if (afrTable1.readEcu()) {
+		log("readEcu(), error reading afrTable1\n");
+		return(1);
+	}
 	afrTable1.readFile();
 	// }}}
 
@@ -361,7 +380,7 @@ int main(int argc, char** argv)
 	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);
 	// }}}
 
-	while (1) {
+	while (!quit) {
 		if (update == ecu) {
 			update = none;
 			log("updating ecu from files");
@@ -371,7 +390,7 @@ int main(int argc, char** argv)
 
 				if (table->readFile()) {
 					cerr << "hard fault trying to read table\n";
-					exit(1);
+					return(1);
 				}
 
 				if (table->hasChanges()) {
@@ -422,4 +441,8 @@ static void sig_update(int sig, siginfo_t *siginfo, void *context) {
 
 static void sig_burn(int sig, siginfo_t *siginfo, void *context) {
 	update = burn;
+}
+
+static void sig_quit(int sig, siginfo_t *siginfo, void *context) {
+	quit = true;
 }

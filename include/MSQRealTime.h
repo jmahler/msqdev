@@ -157,7 +157,7 @@ class MSQRealTime {
 		 */
 		void readAppend() {
 			if (serial->cmd_A(num_bytes, buf)) {
-				cerr << "cmd_A error in readAppend()\n";
+				cerr << "readAppend(), cmd_A() failed\n";
 				return;
 			}
 

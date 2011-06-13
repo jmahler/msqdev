@@ -145,8 +145,10 @@ class MSQDataTable : public MSQData
 					type = y_type;
 				else if (V == i)
 					type = v_type;
-				else
+				else {
+					cerr << "unknown type '" << type << "'\n";
 					return true; // error
+				}
 
 				int byte_mult = 1;
 				if (type == "U16")
@@ -157,8 +159,10 @@ class MSQDataTable : public MSQData
 					byte_mult = 2;
 				else if (type == "S08")
 					byte_mult = 1;
-				else
+				else {
+					cerr << "unknown byte_mult '" << byte_mult << "'\n";
 					return true; // error
+				}
 
 				float mult;
 				float add;
@@ -185,6 +189,7 @@ class MSQDataTable : public MSQData
 					add = v_add;
 					mult = v_mult;
 				} else {
+					cerr << "unknown type '" << type << "'\n";
 					return true;  // error
 				}
 				num_bytes = byte_mult * size;
@@ -199,6 +204,8 @@ class MSQDataTable : public MSQData
 					// read error
 					delete[] buf; 
 					delete[] vals; 
+
+					cerr << "serial cmd_r error; n=" << n << "\n";
 					return true;  // error
 				}
 

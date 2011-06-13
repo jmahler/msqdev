@@ -59,7 +59,7 @@ class MSQSerial {
 		 * This function encapsulates the error detection and correction
 		 * need for reading from a serial device.
 		 */
-		int sread(int fd, char* buf, int size, const int max_errs) {
+		int sread(int fd, char* buf, const int size, const int max_errs) {
 			char* buf_start = buf;
 			int errs = 0;  // number of errors
 			int nr = 0;    // total num read
@@ -69,9 +69,8 @@ class MSQSerial {
 			fcntl(fd, F_SETFL, 0);
 
 			while (errs < max_errs) {
-				n = read(fd, buf, size - nr);
 
-				//printf("read: %d\n", n);
+				n = read(fd, buf, size - nr);
 
 				if (n < 0) {  // an error
 					errs++;
@@ -97,13 +96,18 @@ class MSQSerial {
 					nr += n;
 				}
 
-				if (size == nr) {
+				if (nr == size) {
 					break;
 				}
 			}
+			if (errs >= max_errs) {
+				cerr << "sread() reached max_errs of " << errs << " got " << nr << " bytes\n";
+				buf = buf_start;  // reset to begining
+				return -1; // error
+			}
 
 			buf = buf_start;  // reset to begining
-			return nr; // OK
+			return nr; 		  // OK
 		}
 		// }}}
 
@@ -158,14 +162,34 @@ class MSQSerial {
 
 			tcgetattr(devfd, &options);
 
+			tcflush(devfd, TCIOFLUSH);
+
 			cfsetispeed(&options, B115200);
+			cfsetospeed(&options, B115200);
+
+			//options.c_cflag &= ~(CRTSCTS);
 			options.c_cflag |= (CLOCAL | CREAD);
+
+			//options.c_cflag &= ~(PARENB | PARODD);
 
 			// No parity (8N1)
 			options.c_cflag &= ~PARENB;
 			options.c_cflag &= ~CSTOPB;
 			options.c_cflag &= ~CSIZE;
 			options.c_cflag |= CS8;
+
+			//options.c_iflag &= ~(IXON | IXOFF | IXANY);
+			//options.c_iflag = IGNBRK;
+
+			//options.c_oflag = 0;
+
+			options.c_cc[VQUIT]    = 0;     /* Ctrl-\ */
+			options.c_cc[VERASE]   = 0;     /* del */
+			options.c_cc[VKILL]    = 0;     /* @ */
+			options.c_cc[VEOF]     = 0;     /* Ctrl-d */
+			options.c_cc[VEOL]     = 0;     /* '\0' */
+			options.c_cc[VMIN]     = 0;     
+			options.c_cc[VTIME]    = 1;     /* 100ms timeout */
 
 			tcsetattr(devfd, TCSANOW, &options);
 
@@ -238,49 +262,67 @@ class MSQSerial {
 		int cmd_r(const int tbl_idx,
 					const int offset, const int num_bytes, char* msg)
 		{
+			int max_tries = 2;
+			int tries = 0;
+
 			int n;
-			char _buf[7];
-			char* buf;
-			buf = &_buf[0];
+			while (tries++ < max_tries) {
+				char _buf[7];
+				char* buf;
+				buf = &_buf[0];
 
-			*buf = 114;  // 'r'
-			buf++;
+				*buf = 114;  // 'r'
+				buf++;
 
-			*buf = 0;
-			buf++;
+				*buf = 0;
+				buf++;
 
-			*buf = (unsigned char) tbl_idx;
-			buf++;
+				*buf = (unsigned char) tbl_idx;
+				buf++;
 
-			buf = &_buf[0]; /* reset to begining */
+				buf = &_buf[0]; /* reset to begining */
 
-			n = write(devfd, buf, 3);
-			if (n < 3)
-				fputs("write of r command failed!\n", stderr);
+				n = write(devfd, buf, 3);
+				if (n < 3) {
+					cerr << "write of r command failed!\n";
+					tcflush(devfd, TCIOFLUSH);
+					continue;
+				}
 
-			/* 200 ms delay required when switching pages (or anytime) */
-			usleep(200000);   /* 200 ms -> 200000 us (micro seconds) */
+				/* 200 ms delay required when switching pages (or anytime) */
+				usleep(200000);   /* 200 ms -> 200000 us (micro seconds) */
 
 
-			*buf = (unsigned char)((offset >> 8) & 255);
-			buf++;
-			*buf = (unsigned char)(offset & 255);
-			buf++;
+				*buf = (unsigned char)((offset >> 8) & 255);
+				buf++;
+				*buf = (unsigned char)(offset & 255);
+				buf++;
 
-			*buf = (unsigned char)((num_bytes >> 8) & 255);
-			buf++;
-			*buf = (unsigned char)(num_bytes & 255);
-			/*buf++;*/
+				*buf = (unsigned char)((num_bytes >> 8) & 255);
+				buf++;
+				*buf = (unsigned char)(num_bytes & 255);
+				/*buf++;*/
 
-			buf = &_buf[0]; /* reset to begining */
+				buf = &_buf[0]; /* reset to begining */
 
-			n = write(devfd, buf, 4);
-			if (n < 4)
-				fputs("write of r command failed!\n", stderr);
+				n = write(devfd, buf, 4);
+				if (n < 4) {
+					cerr << "write of r command failed!\n";
+					tcflush(devfd, TCIOFLUSH);
+					continue;
+				}
 
-			n = sread(devfd, msg, num_bytes, 10);
-			if (n < num_bytes) {
-				//printf("num read: %d\n", n);
+				n = sread(devfd, msg, num_bytes, 10);
+				if (n < num_bytes) {
+					cerr << "cmd_r sread() returned too few bytes, got " << n << ", expecting " << num_bytes << endl;
+					tcflush(devfd, TCIOFLUSH);
+					continue;
+				}
+
+				break;
+			}
+			if (tries >= max_tries) {
+				cerr << "cmd_r max_tries of " << tries << " reached\n";
 				return -1;  // error
 			}
 
@@ -376,16 +418,27 @@ class MSQSerial {
 		bool cmd_A(const int num_bytes, char* buf)
 		{
 			int n;  // read/write counts
+			int tries = 0;
+			int max_tries = 2;
 			
-			n = write(devfd, "A", 1);
-			if (n != 1)  {
-				cerr << "write of A command failed\n";
-				return true;  // error
-			}
+			while (tries++ < max_tries) {
+				n = write(devfd, "A", 1);
+				if (n != 1)  {
+					cerr << "write of A command failed\n";
+					tcflush(devfd, TCIOFLUSH);	
+					continue;
+				}
 
-			n = sread(devfd, buf, num_bytes, 5);
-			if (n != num_bytes) {
-				cerr << "error reading result of A command\n";
+				n = sread(devfd, buf, num_bytes, 5);
+				if (n != num_bytes) {
+					cerr << "error reading result of A command\n";
+					tcflush(devfd, TCIOFLUSH);	
+				}
+
+				break;
+			}
+			if (tries >= max_tries) {
+				cerr << "cmd_A() max_tries of " << max_tries << "exceeded\n";
 				return true;  // error
 			}
 
