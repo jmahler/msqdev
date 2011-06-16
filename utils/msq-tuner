@@ -171,7 +171,7 @@ $range = $range / 100;
 my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
 $year += 1900;
 $month += 1;
-my $plot_data_file = sprintf("plotdata-$table_type-%d%02d%02d.%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+my $plot_data_file = sprintf("plotdata-$table_type-%d%02d%02d-%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
 
 
 my $table = Text::LookUpTable->load_file($table_file)
