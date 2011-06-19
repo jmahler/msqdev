@@ -1,0 +1,73 @@
+type: veTable1
+start main()
+Press ENTER to pause/resume recording
+Press Ctrl-C to quit
+building a plan
+plan: left=46.4, right=69.6, inc=4.64
+  left vals: 58, 53.36, 48.72
+  right vals: 58, 62.64, 67.28
+state: plan_needed -> record
+next left val: 58
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+========state (change_delay) time left, count left: 19, 92
+================================state (change_delay) time left, count left: 18, 60
+=================================================state (change_delay) time left, count left: 17, 11
+============state: change_delay -> record
+=state (record) time left, count left: 30, 99
+====================================state (record) time left, count left: 29, 63
+=================================================state (record) time left, count left: 28, 14
+===============next left val: 53.36
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+=======state (change_delay) time left, count left: 19, 93
+state (change_delay) time left, count left: 18, 93
+======================================state (change_delay) time left, count left: 17, 55
+=================================================state (change_delay) time left, count left: 16, 6
+=======state: change_delay -> record
+=state (record) time left, count left: 30, 99
+=========================================state (record) time left, count left: 29, 58
+==================================================state (record) time left, count left: 28, 8
+=========next left val: 48.72
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+=======state (change_delay) time left, count left: 19, 93
+state (change_delay) time left, count left: 18, 93
+============================================state (change_delay) time left, count left: 17, 49
+==================================================state: change_delay -> record
+=state (record) time left, count left: 30, 99
+================================================state (record) time left, count left: 29, 51
+==================================================state (record) time left, count left: 28, 1
+==next right val: 58
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+========state (change_delay) time left, count left: 19, 92
+state (change_delay) time left, count left: 18, 92
+=================================================state (change_delay) time left, count left: 17, 43
+============================================state: change_delay -> record
+=state (record) time left, count left: 30, 99
+=====state (record) time left, count left: 29, 94
+=================================================state (record) time left, count left: 28, 45
+==============================================next right val: 62.64
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+========state (change_delay) time left, count left: 19, 92
+======state (change_delay) time left, count left: 18, 86
+==================================================state (change_delay) time left, count left: 17, 36
+=====================================state: change_delay -> record
+=state (record) time left, count left: 30, 99
+===========state (record) time left, count left: 29, 88
+==================================================state (record) time left, count left: 28, 38
+=======================================next right val: 67.28
+state: record -> change_delay
+state (change_delay) time left, count left: 20, 100
+=======state (change_delay) time left, count left: 19, 93
+state (change_delay) time left, count left: 18, 93
+=============state (change_delay) time left, count left: 17, 80
+==================================================state (change_delay) time left, count left: 16, 30
+===============================state: change_delay -> record
+=state (record) time left, count left: 30, 99
+==================state (record) time left, count left: 29, 81
+=====---=======----------------------------------state (record) time left, count left: 28, 32
+---------------------------------restoring original table
+Do you want to restart? [Y/n] 

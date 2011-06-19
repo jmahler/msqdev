@@ -1,0 +1,42 @@
+
+/*
+ * The following calculations were used to extrapolate the temperature
+ * versus restiance of a temperature sensor on a 1992 Volkswagen 2.0 16v engine.
+ * This data was then input to Megatunix to define the resitance values.
+ *
+ * To run this script start Maxima and enter: batch("clt-resitance.maxima");
+ */
+
+load(draw);
+load(lsquares);
+
+/* temps in degF */
+t1: [61, 68, 86, 149];
+/* corresponding resitances */
+r1: [2966, 2500, 1750, 500];
+
+
+m1: transpose(addrow(matrix(), r1, t1));
+
+_fit1: lsquares_estimates(m1, [y, x], y=a*x^2 + b*x + c, [a, b, c]);
+_fit1: float(_fit1);
+
+fit1: a*x^2 + b*x + c, first(first(_fit1)), second(first(_fit1)), third(first(_fit1));
+
+/* resitance values at specific temps */
+rn40: fit1, x=-40;
+r30: fit1, x=30;
+r99: fit1, x=99;
+
+plot2d(
+	[
+		[discrete, t1, r1],
+		fit1
+	],
+	[x, -40, 160],
+	[style, [points, 3, 2], [lines, 1, 1]],
+
+	[xlabel, "temp (F)"],
+	[ylabel, "resistance (ohms)"],
+	[gnuplot_preamble, "set title 'temp (F) vs resistance (ohms)'"]
+);
