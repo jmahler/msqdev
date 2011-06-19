@@ -18,9 +18,13 @@ There are several programs included with this package.
 
  * msq-rtmonitor - Displays the selected values of incoming real time data.
 
- * msq-tuner - Varies values in a table at the current position
+ * msq-speed\_tuner - Varies values in a table at the current position
    and records data to be analyzed.
    (steady state tuning)
+
+ * msq-accel\_tuner - Tunes by comparing two accelerations with different
+   settings under the same conditions.
+   (constant acceleration)
 
 For more specific information see the programs help (-h) output.
 
