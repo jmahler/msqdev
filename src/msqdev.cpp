@@ -295,7 +295,6 @@ int main(int argc, char** argv)
 
 	// RTConfigScalar(name, type, offset, mult, add)
 
-	// seconds 
 	// seconds          = scalar, U16,    0, "s",   1.000, 0.0
 	RTConfigScalar seconds("seconds", "U16", 0, 1, 0);
 	rtconfig.push_back(&seconds);
@@ -375,6 +374,15 @@ int main(int argc, char** argv)
 
 	RTConfigScalar fuelCorrection("fuelCorrection", "S16", 68, 1.000, 0.0);
 	rtconfig.push_back(&fuelCorrection);
+
+	RTConfigScalar looptime("looptime", "U16", 82, 0.6667, 0.0);
+	rtconfig.push_back(&looptime);
+
+	RTConfigScalar synccnt("synccnt", "U08", 94, 1.0, 0.0);
+	rtconfig.push_back(&synccnt);
+
+	RTConfigScalar deltaT("deltaT", "S32", 96, 1.0, 0.0);
+	rtconfig.push_back(&deltaT);
 
 	// serial_device, file, buffer length, config(above)
 	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);

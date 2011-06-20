@@ -19,9 +19,10 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <ctime>
+#include <sys/time.h>
 #include <string>
 #include <sstream>
+#include <ctime>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -135,6 +136,7 @@ class MSQRealTime {
 			if (write_cols) {
 				vector<RTConfig*>::iterator it;
 
+				out << "localtime" << sep;  // add special "time" column
 				for (it = config.begin(); it != config.end(); it++) {
 					out << ((*it)->name) << sep;
 				}
@@ -156,6 +158,18 @@ class MSQRealTime {
 		 * Read one chunk of data and append it to the output file.
 		 */
 		void readAppend() {
+
+			static struct timeval tv;
+			static struct timezone tz;
+			static time_t first_time = 0;
+			// first_time is used to change seconds since epoch to
+			// seconds since first readAppend call.
+			// This is to make the time number smaller so it works
+			// better with applications such as R.
+			//static float max_suseconds = pow(2, (sizeof(suseconds_t) * 8)) - 1;
+			double t;
+
+
 			if (serial->cmd_A(num_bytes, buf)) {
 				cerr << "readAppend(), cmd_A() failed\n";
 				return;
@@ -164,6 +178,17 @@ class MSQRealTime {
 			vector<RTConfig*>::iterator it;
 
 			stringstream line;  // build a line of the data
+
+			gettimeofday(&tv, &tz);
+			if (0 == first_time) {
+				first_time = tv.tv_sec;
+			}
+
+			t = tv.tv_sec - first_time;
+			t += (tv.tv_usec / 1.0e6);  // add microseconds converted to seconds
+
+			line << t << sep;
+
 			for (it = config.begin(); it != config.end(); it++) {
 
 				unsigned int offset = (*it)->offset;

@@ -45,6 +45,26 @@ float bufToValue(string type, float add, float mult, char* buf) {
 		char c;
 		c = *buf & 0xFF;
 		v = c;
+	} else if ("U32") {
+		unsigned int s;
+		s = *buf & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 1) & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 2) & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 3) & 0xFF;
+		v = s;
+	} else if ("S32") {
+		int s;
+		s = *buf & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 1) & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 2) & 0xFF;
+		s = (s << 8);
+		s |= *(buf + 3) & 0xFF;
+		v = s;
 	}
 
 	v += add;

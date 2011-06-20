@@ -1,0 +1,404 @@
+#!/usr/bin/perl
+use strict;
+
+#
+# Copyright (C) 2011 Jeremiah Mahler <jmmahler@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+use Text::LookUpTable;
+use Time::HiRes qw(usleep);
+use IO::Select;
+
+# {{{ @ARGV
+
+# first define the default values, then
+# process @ARGV for any changes
+
+my @modes = qw(single);
+my $mode_str = join ", ", @modes;
+my $mode_reset = 1;   # used to clear default modes if any modes are defined
+
+my $name;
+
+# default values
+my $rtdata_file = "rtdata"; # real time data file
+
+my $range = 10;   			# maximum range (%) to vary the values by
+my $num_points = 4;   		# number of points to randomize
+
+#my $table_file = 'advanceTable1';
+my $table_file = 'veTable1';
+
+my $table_type = $table_file;  # currently same as file, but this may change
+my $SEP = ",";
+
+my $pname = (split /\//, $0)[-1];  # name of this program without spaces
+
+my $DEBUG = 1;
+
+# usage
+# TODO - output file description
+my $usage = <<"HERE";
+  USAGE:
+
+	$pname [<options>]
+
+	  plot data is output to plotdata-<table name>-<time stamp>
+
+  OPTIONS:      [default value]  description
+
+    -m          [$mode_str] mode
+                Add a mode to the list of modes which are used
+                as names during a tuning session.
+                For example road testing where driving is performed back and forth
+                on a single stretch of road might have modes: "back", "forth".
+
+    -n          [$name] a name for this session
+
+    -t          [$table_file] type
+                veTable1 | advanceTable1
+
+    -rd         [$rtdata_file] real time data file
+
+    -r          [$range] maximum range (%) to vary values
+
+    -d          [$DEBUG] enable debugging (1) or disable (0)
+
+    -h          this screen
+
+  RUNNING COMMANDS:
+
+   ENTER        pause/resume recording
+   Ctrl-C       quit
+
+  EXAMPLES:
+
+   # to record all the debug output use 'tee'
+   $pname | tee tune.log
+
+   # or with a time stamped file
+   $pname -pr 1 | tee tuner_log-`date +%Y%m%d.%H:%M:%S` 
+
+HERE
+
+# process @ARGV
+{
+my $s1;
+my $s2;
+my $i;
+
+# utility for checking a required second argument
+my $req_arg_fn = sub {
+	my $op = shift;
+
+	if (($i + 1) >= @ARGV) {
+		print STDERR "option '$op' requires an argument. See help ($pname -h)\n";
+		#print STDERR $usage;
+		exit 1;
+	}
+
+	$i++;  # skip the second argument during the next iteration
+
+	return $ARGV[$i];  # return the second argument
+};
+
+for ($i = 0; $i < @ARGV; $i++) {
+	$s1 = $ARGV[$i];
+
+    if ($s1 eq '-h') {
+		print $usage;
+		exit;
+	} elsif ($s1 eq '-m') {
+        my $new_mode = $req_arg_fn->('-m');
+        if ($mode_reset) {
+            $mode_reset = 0;
+            @modes = ($new_mode);
+        } else {
+            push @modes, $new_mode;
+        }
+	} elsif ($s1 eq '-n') {
+        $name = $req_arg_fn->('-n');
+	} elsif ($s1 eq '-t') {
+        $table_file = $req_arg_fn->('-t');
+    } elsif ($s1 eq '-rd') {
+        $rtdata_file = $req_arg_fn->('-rd');
+    } elsif ($s1 eq '-r') {
+        $range = $req_arg_fn->('-r');
+    } elsif ($s1 eq '-d') {
+        $DEBUG = $req_arg_fn->('-d');
+    } else {
+		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
+		exit 1;
+    }
+}
+$mode_str = join ", ", @modes;
+}
+
+
+# The range is given as a percent(%) but in all the calculations
+# it is used as a fraction.
+# Here it is converted to a fraction to make the calculations simpler.
+$range = $range / 100;
+
+$name .= "-" if ($name ne '');
+# }}}
+
+my $table = Text::LookUpTable->load_file($table_file)
+	or die "unable to open table in file '$table_file': $!\n";
+my $orig_table = $table->copy();
+
+open(RTDATA, "< $rtdata_file")
+	or die "unable to open file '$rtdata_file': $!\n";
+
+my $mode_n = 0;       # current position in @modes
+my $mode = $modes[0]; # current mode
+
+# {{{ signal handlers
+
+# Ctrl-C
+$SIG{INT} = sub {
+	print "restoring original table\n" if $DEBUG;
+	$orig_table->save_file();
+	`kill -HUP \`cat pid\``;
+
+	exit 0;
+};
+
+# }}}
+
+# {{{ configure the type
+# names of x, y, and z
+my $sx;
+my $sy;
+my $sv;
+
+if ($table_type eq 'advanceTable1') {
+	print "type: advanceTable1\n" if $DEBUG;
+	$sx = "rpm";
+	$sy = "map";
+	$sv = "advance";
+} elsif ($table_type eq 'veTable1') {
+	print "type: veTable1\n" if $DEBUG;
+	$sx = "rpm";
+	$sy = "fuelload";
+	$sv = "veCurr1";
+} else {
+	print STDERR "unkown table type '$table_type'\n";
+	exit 1;
+}
+# }}}
+
+# {{{ Read the column names, configure selected positions
+
+# The first line of the real time data should contain the column names
+my $first_line = <RTDATA>;
+
+my @col_defs = split /\s+/, $first_line;
+
+my %col_pos;
+for (my $i = 0; $i < @col_defs; $i++) {
+	$col_pos{$col_defs[$i]} = $i;
+}
+
+my $col_names = join $SEP, @col_defs;
+
+my @req_names = ($sx, $sy, $sv);
+foreach my $req_name (@req_names) {
+	unless (exists $col_pos{$req_name}) {
+		die "required name '$req_name' not in column names\n";
+	}
+}
+
+# }}}
+
+my @points;  # unique table points from last recording
+
+
+main_menu();
+
+print "restoring original table\n" if $DEBUG;
+$orig_table->save_file();
+`kill -HUP \`cat pid\``;
+
+# {{{ functions
+
+# {{{ timestamp
+sub timestamp {
+	my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
+	$year += 1900;
+	$month += 1;
+	return sprintf("%d%02d%02d-%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+}
+# }}}
+
+# {{{ randomize_points
+
+=head2 randomize_points()
+
+randomize_points($num, $pcnt_range, \@points);
+
+$num is the number of randomly chosen points to be changed.
+
+$pcnt_change is the maximum percent change in a point will be changed.
+
+\@points is the list of points to change.
+
+=cut
+
+sub randomize_points {
+    my ($n, $r, $points) = @_;
+
+    my $num_points = @$points;
+
+    for (my $i = 0; $i < $n; $i++) {
+        my $j = int(rand($num_points));  # offset of point to change
+
+        my $x = $points->[$j][2];  # value
+
+        my $d = $x * $r;
+        $d = rand(2*$d) - $d;
+
+        $x += $d;
+
+        $x = (int($x * 100)) / 100;  # round
+        $points->[$j][2] = $x;
+    }
+}
+# }}}
+
+# {{{ main_menu()
+sub main_menu() {
+
+	while (1) {
+		$mode = $modes[$mode_n];
+
+		print "mode: $mode\n";
+		print "Press ENTER to begin recording.\n";
+		<STDIN>;
+
+		record_menu();
+		print "recording stopped\n";
+
+		print "randomizing points ...";
+        randomize_points($num_points, $range, \@points);
+        foreach my $point (@points) {
+            $table->set($point->[0], $point->[1], $point->[2]);
+        }
+
+	    $table->save_file();
+	    `kill -HUP \`cat pid\``;
+		print "done\n";
+
+		$mode_n++;
+		$mode_n = 0 if ($mode_n >= @modes);
+	}
+}
+# }}}
+
+# {{{ record_menu()
+
+sub record_menu() {
+	my $skip_first = 1;  # skip already present real time data
+
+	my $timestamp = timestamp();
+	my $out_file = "msq-accel-$name$timestamp-rtdata-$mode";
+	my $out_points_file = "msq-accel-$name$timestamp-points-$mode";
+
+	print "outputting data to '$out_file'\n" if $DEBUG;
+	print "outputting points to '$out_points_file'\n" if $DEBUG;
+
+	unless (open (OUT, "> $out_file")) {
+		print STDERR "unable to open file '$out_file' for output: $!\n";
+		return;
+	}
+	my $oldfh = select(OUT);
+	$| = 1;  # flush output after every print
+	select($oldfh);
+	print OUT "$col_names\n";
+
+	unless (open (OUT_POINTS, "> $out_points_file")) {
+		print STDERR "unable to open file '$out_points_file' for output: $!\n";
+		return;
+	}
+	my $oldfh = select(OUT_POINTS);
+	$| = 1;  # flush output after every print
+	select($oldfh);
+	#print OUT_POINTS "$sx,$sy,$sv\n";
+	print OUT_POINTS "x,y,$sv\n";  # points column names
+
+	my %points;  # used to create unique set of points
+
+	my $sel_stdin = IO::Select->new();
+	$sel_stdin->add(\*STDIN);
+
+	print "Press ENTER to stop recording.\n";
+	while (1) {
+
+		# if user wants to stop ...
+		if ($sel_stdin->can_read(0)) {
+			<STDIN>;  # read and discard
+			$sel_stdin->remove(\*STDIN);
+			last;
+		}
+
+		# process all data
+		while (my $line = <RTDATA>) {
+			next if $skip_first;
+
+			my @vals = split /\s+/, $line;
+			my $x_val = $vals[$col_pos{$sx}];
+			my $y_val = $vals[$col_pos{$sy}];
+
+			my $cur_point = ($table->lookup_points($x_val, $y_val, 0))[0];
+			my $cur_val = $table->get($cur_point->[0], $cur_point->[1]);
+			my $point_uid = join ", ", @$cur_point;
+
+			$points{$point_uid} = [@$cur_point, $cur_val];
+
+			my $vals_str = join $SEP, @vals;
+			print OUT "$vals_str\n";
+		}
+		$skip_first = 0;
+		seek(RTDATA, 0, 1);  # reset EOF
+
+		usleep(2e4);  # slow things down
+	}
+
+	@points = ();  # clear old points
+	foreach my $key (keys %points) {
+		push @points, $points{$key};
+	}
+
+	@points = sort {
+					if ($a->[0] == $b->[0]) {
+						($a->[1] <=> $b->[1]);
+					} else {
+						($a->[0] <=> $b->[0]);
+					}
+				} @points;
+
+	foreach my $point (@points) {
+		my $s = join $SEP, @$point;
+		print OUT_POINTS "$s\n";
+	}
+
+	close OUT_POINTS;
+	close OUT;
+}
+# }}}
+
+# }}}
+
