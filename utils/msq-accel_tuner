@@ -38,7 +38,9 @@ my $name = '';
 # default values
 my $rtdata_file = "rtdata"; # real time data file
 
-my $range = 10;   			# maximum range (%) to vary the values by
+my $change_type = 'shift';
+
+my $range = 5;   			# maximum range (%) to vary the values by
 my $num_points = 4;   		# number of points to randomize
 
 #my $table_file = 'advanceTable1';
@@ -49,7 +51,8 @@ my $SEP = ",";
 
 my $pname = (split /\//, $0)[-1];  # name of this program without spaces
 
-my $DEBUG = 1;
+
+my $DEBUG = 0;
 
 # usage
 # TODO - output file description
@@ -74,6 +77,9 @@ my $usage = <<"HERE";
                 veTable1 | advanceTable1
 
     -rd         [$rtdata_file] real time data file
+
+    -ct         [$change_type] which mode to use when changing points
+                random | shift
 
     -r          [$range] maximum range (%) to vary values
 
@@ -135,8 +141,18 @@ for ($i = 0; $i < @ARGV; $i++) {
         $name = $req_arg_fn->('-n');
 	} elsif ($s1 eq '-t') {
         $table_file = $req_arg_fn->('-t');
+        unless ($table_file eq 'veTable1' or $table_file eq 'advanceTable1') {
+		   print STDERR "unkown table type (-t) '$table_file', See help ($pname -h)\n";
+		   exit 1;
+        }
     } elsif ($s1 eq '-rd') {
         $rtdata_file = $req_arg_fn->('-rd');
+    } elsif ($s1 eq '-ct') {
+        $change_type = $req_arg_fn->('-ct');
+        unless ($change_type eq 'random' or $change_type eq 'shift') {
+		   print STDERR "unkown change type (-ct) '$change_type', See help ($pname -h)\n";
+		   exit 1;
+        }
     } elsif ($s1 eq '-r') {
         $range = $req_arg_fn->('-r');
     } elsif ($s1 eq '-d') {
@@ -229,6 +245,7 @@ sub main_menu() {
 		$mode = $modes[$mode_n];
 
 		print "mode: $mode\n";
+		print "change type: $change_type\n";
 		print "Press ENTER to begin recording.\n";
 		<STDIN>;
 
@@ -254,15 +271,24 @@ sub main_menu() {
 				$next_points = twdac($rtdata_hist->[1]{points});
 			}
 		} else {
-			print "best: not enoug points yet, need at least 2\n";
+			print "best: not enough points yet, need at least 2\n";
 			$next_points = twdac($rtdata_hist->[0]{points});
 		}
 
 		@points = ();
 		@points = @$next_points;
 
-		print "randomizing points ...";
-        randomize_points($num_points, $range, \@points);  # *mutates @points
+		if ($change_type eq 'random') {
+			print "change: randomizing points ...";
+			randomize_points($num_points, $range, \@points);  # *mutates @points
+		} elsif ($change_type eq 'shift') {
+			print "change: shifting points ...";
+        	shift_points($range, \@points);
+		} else {
+			print STDERR "unkown change type '$change_type'\n";
+			exit 1;
+		}
+
         foreach my $point (@points) {
             $table->set($point->[0], $point->[1], $point->[2]);
         }
@@ -403,6 +429,47 @@ sub randomize_points {
 
         $x = (int($x * 100)) / 100;  # round
         $points->[$j][2] = $x;
+    }
+}
+# }}}
+
+# {{{ shift_points
+
+=head2 shift_points($change, \@points)
+
+Shift all points up/down.
+
+$change is the fraction (percent / 100) to change a point.
+
+\@points is the list of points to change (mutate).
+
+=cut
+
+sub shift_points {
+    my ($r, $points) = @_;
+
+    my $num_points = @$points;
+	return if (0 == $num_points);
+
+	print "shift_points()\n" if ($DEBUG);
+
+	# randomly up/down
+	my $neg = (1 == int(rand(2))) ? -1 : 1;
+	print "  neg: $neg\n" if ($DEBUG);
+
+    for (my $i = 0; $i < $num_points; $i++) {
+		my $x = $points->[$i][2];  # value
+
+		print "  x: $x\n" if ($DEBUG);
+        my $d = $x * $r * $neg;
+		print "  d: $d\n" if ($DEBUG);
+
+        $x += $d;
+
+        $x = (int($x * 100)) / 100;  # round
+		print "  x (new): $x\n" if ($DEBUG);
+
+        $points->[$i][2] = $x;
     }
 }
 # }}}
