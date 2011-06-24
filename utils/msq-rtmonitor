@@ -61,7 +61,7 @@ my $first_line = <IN>;
 
 my @col_selp;  # selection positions
 
-my @col_defs = split /\s+/, $first_line;
+my @col_defs = split /,/, $first_line;
 
 # For each selected name, find its associated
 # column position.
@@ -90,7 +90,7 @@ while (1) {
 	while (my $line = <IN>) {
 		next if $skip_first;
 
-		my @parts = split /\s+/, $line;
+		my @parts = split /,/, $line;
 		
 		my @vals = ();
 		for (my $i = 0; $i < @col_selp; $i++) {
