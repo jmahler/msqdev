@@ -29,6 +29,10 @@
 /* http://www.easysw.com/~mike/serial/serial.html */
 #include <sys/ioctl.h>
 
+#ifndef DEBUG
+#define DEBUG false
+#endif
+
 using namespace std;
 
 int usleep(__useconds_t usec);  // to quiet the compiler
@@ -65,17 +69,23 @@ class MSQSerial {
 			int nr = 0;    // total num read
 			int n; 		   // sing num read or possibly error
 
+			if (DEBUG) { cout << "sread()\n"; }
+			if (DEBUG) { cout << "  size req: " << size << "\n"; }
+
 			//fcntl(devfd, F_SETFL, FNDELAY);
 			fcntl(fd, F_SETFL, 0);
 
 			while (errs < max_errs) {
 
+				if (DEBUG) { cout << "read()..."; }
 				n = read(fd, buf, size - nr);
+				if (DEBUG) { cout << "done."; }
 
 				if (n < 0) {  // an error
 					errs++;
 
 					if (errno == EINTR) {
+						if (DEBUG) { cout << "  EINTR\n"; }
 						//perror("EINTR error");
 						// see read(2) for a description of EINTR
 					} else {
@@ -86,9 +96,12 @@ class MSQSerial {
 						return -1; // error
 					}
 				} else if (0 == n) {
+					if (DEBUG) { cout << "  0 read\n"; }
+
 					errs++;
 				} else if (n > 0) {
 					// got some good data
+					if (DEBUG) { cout << "  got: " << n << "\n"; }
 
 					errs = 0; // reset
 
@@ -164,7 +177,8 @@ class MSQSerial {
 
 			tcflush(devfd, TCIOFLUSH);
 
-			cfsetispeed(&options, B115200);
+			cfsetispeed(&options, 0);  // 0 -> same as ospeed
+			//cfsetispeed(&options, B115200);
 			cfsetospeed(&options, B115200);
 
 			//options.c_cflag &= ~(CRTSCTS);
@@ -191,7 +205,30 @@ class MSQSerial {
 			options.c_cc[VMIN]     = 0;     
 			options.c_cc[VTIME]    = 1;     /* 100ms timeout */
 
-			tcsetattr(devfd, TCSANOW, &options);
+			// write, verify, retry if needed
+			int i = 0;
+			struct termios voptions;
+			for (i = 0; i < 5; i++) {
+				tcsetattr(devfd, TCSANOW, &options);
+
+				tcgetattr(devfd, &voptions);
+
+				if (B115200 != cfgetispeed(&voptions)) {
+					cerr << "cfsetispeed failed\n";
+					continue;  // retry
+				}
+
+				if (B115200 != cfgetospeed(&voptions)) {
+					cout << "cfsetospeed failed\n";
+					continue;  // retry
+				}
+
+				break;  // success
+			}
+			if (i == 5) {
+				cerr << "failed to configure serial port\n";
+				return true;  // error
+			}
 
 			return false;  // OK
 		}
@@ -262,6 +299,8 @@ class MSQSerial {
 		int cmd_r(const int tbl_idx,
 					const int offset, const int num_bytes, char* msg)
 		{
+			if (DEBUG) { cout << "cmd_r()\n"; }
+
 			int max_tries = 2;
 			int tries = 0;
 

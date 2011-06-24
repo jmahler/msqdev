@@ -116,7 +116,7 @@ class MSQRealTime {
 			file = _file;
 			config = _config;
 			num_bytes = _num_bytes;
-			sep = " ";  // separator
+			sep = ",";  // separator
 
 			// If the file does not exists,
 			// set a flag to add the columns after the

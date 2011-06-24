@@ -26,6 +26,10 @@
 #include <set>
 #include <unistd.h> // sleep
 
+#ifndef DEBUG
+#define DEBUG false
+#endif
+
 using namespace std;
 
 #define EPSILON 0.001	// for floating point comparisons

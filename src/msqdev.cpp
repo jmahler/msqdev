@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define DEBUG false
+
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -201,10 +203,12 @@ int main(int argc, char** argv)
 			"RPM", "map(%)"  	// title (without spaces!)
 			);
 
+	if (DEBUG) { cout << "advanceTable1.readEcu()\n"; }
 	if (advanceTable1.readEcu()) {
 		log("readEcu(), error reading advanceTable1\n");
 		return(1);
 	}
+	if (DEBUG) { cout << "advanceTable1.readFile()\n"; }
 	advanceTable1.readFile();
 	// }}}
 
@@ -234,10 +238,12 @@ int main(int argc, char** argv)
 			"RPM", "FuelLoad(%)"  	// title (without spaces!)
 			);
 
+	if (DEBUG) { cout << "veTable1.readEcu()\n"; }
 	if (veTable1.readEcu()) {
 		log("readEcu(), error reading veTable1\n");
 		return(1);
 	}
+	if (DEBUG) { cout << "veTable1.readFile()\n"; }
 	veTable1.readFile();
 	// }}}
 
@@ -271,10 +277,12 @@ int main(int argc, char** argv)
 			"RPM", "map(Kpa)"  	// title (without spaces!)
 			);
 
+	if (DEBUG) { cout << "afrTable1.readEcu()\n"; }
 	if (afrTable1.readEcu()) {
 		log("readEcu(), error reading afrTable1\n");
 		return(1);
 	}
+	if (DEBUG) { cout << "afrTable1.readFile()\n"; }
 	afrTable1.readFile();
 	// }}}
 
@@ -414,8 +422,11 @@ int main(int argc, char** argv)
 			for (int i = 0; i < num_tables; i++) {
 				MSQData *table = tables[i];
 
+				if (DEBUG) { cout << "hasChanges()?\n"; }
 				if (table->hasChanges()) {
+					log("cpEcuToFile()");
 					table->cpEcuToFile();
+					log("writeFile()");
 					table->writeFile();
 				}
 			}
