@@ -137,9 +137,10 @@ class MSQRealTime {
 				vector<RTConfig*>::iterator it;
 
 				out << "localtime" << sep;  // add special "time" column
-				for (it = config.begin(); it != config.end(); it++) {
+				for (it = config.begin(); (it + 1) != config.end(); it++) {
 					out << ((*it)->name) << sep;
 				}
+				out << ((*it)->name) ;  // without sep
 				out << endl;
 			}
 
@@ -199,7 +200,10 @@ class MSQRealTime {
 					string type = rtc->type;
 					float val = bufToValue(type, add, mult, &buf[offset]);
 
-					line << val << sep;
+					line << val;
+					if ((it + 1) != config.end()) {
+						line << sep;
+					}
 
 				// TODO
 				//} else if (RTConfigBits* rtc
@@ -207,7 +211,6 @@ class MSQRealTime {
 				}
 				// else unkown type, ignore
 			}
-			// TODO remove trailing sep'arator
 
 			out << line.str() << endl;
 		}
