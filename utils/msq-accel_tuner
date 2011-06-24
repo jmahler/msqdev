@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use warnings;
 use strict;
 
 #
@@ -21,6 +22,7 @@ use strict;
 use Text::LookUpTable;
 use Time::HiRes qw(usleep);
 use IO::Select;
+use MSQ::RTData;
 
 # {{{ @ARGV
 
@@ -31,7 +33,7 @@ my @modes = qw(single);
 my $mode_str = join ", ", @modes;
 my $mode_reset = 1;   # used to clear default modes if any modes are defined
 
-my $name;
+my $name = '';
 
 # default values
 my $rtdata_file = "rtdata"; # real time data file
@@ -160,11 +162,13 @@ my $table = Text::LookUpTable->load_file($table_file)
 	or die "unable to open table in file '$table_file': $!\n";
 my $orig_table = $table->copy();
 
-open(RTDATA, "< $rtdata_file")
+my $rtdata = MSQ::RTData->new($rtdata_file)
 	or die "unable to open file '$rtdata_file': $!\n";
 
 my $mode_n = 0;       # current position in @modes
 my $mode = $modes[0]; # current mode
+my $out_file;
+my $out_points_file;
 
 # {{{ signal handlers
 
@@ -201,46 +205,169 @@ if ($table_type eq 'advanceTable1') {
 }
 # }}}
 
-# {{{ Read the column names, configure selected positions
-
-# The first line of the real time data should contain the column names
-my $first_line = <RTDATA>;
-
-my @col_defs = split /\s+/, $first_line;
-
-my %col_pos;
-for (my $i = 0; $i < @col_defs; $i++) {
-	$col_pos{$col_defs[$i]} = $i;
-}
-
-my $col_names = join $SEP, @col_defs;
-
-my @req_names = ($sx, $sy, $sv);
-foreach my $req_name (@req_names) {
-	unless (exists $col_pos{$req_name}) {
-		die "required name '$req_name' not in column names\n";
-	}
-}
-
-# }}}
-
 my @points;  # unique table points from last recording
 
-
-main_menu();
-
-print "restoring original table\n" if $DEBUG;
-$orig_table->save_file();
-`kill -HUP \`cat pid\``;
+# history of recorded data, (initialize)
+my %hist;
+for (my $i = 0; $i < @modes; $i++) {
+	$hist{$modes[$i]} = [];
+}
 
 # {{{ functions
 
-# {{{ timestamp
-sub timestamp {
-	my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
-	$year += 1900;
-	$month += 1;
-	return sprintf("%d%02d%02d-%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+# {{{ main_menu()
+
+=head2 main_menu()
+
+Establishes the main interface.
+
+=cut
+
+sub main_menu() {
+
+	while (1) {
+		$mode = $modes[$mode_n];
+
+		print "mode: $mode\n";
+		print "Press ENTER to begin recording.\n";
+		<STDIN>;
+
+		record_menu();
+		print "recording stopped\n";
+		# new data has been recorded and stored in @hist
+
+		my $rtdata_hist = $hist{$mode};
+
+		# Decide which (best) should be modified (randomized).
+		my $next_points;
+		if (@$rtdata_hist >= 2) {
+			my $cmp = best_max_rpm($rtdata_hist->[0]{rtdata},
+								$rtdata_hist->[1]{rtdata});
+			if (1 == $cmp) {
+				print "best: new is better than previous\n";
+				$next_points = twdac($rtdata_hist->[0]{points});
+			} elsif (-1 == $cmp) {
+				print "best: previous is better than new\n";
+				$next_points = twdac($rtdata_hist->[1]{points});
+			} else {
+				print "best: equal, reverting to previous\n";
+				$next_points = twdac($rtdata_hist->[1]{points});
+			}
+		} else {
+			print "best: not enoug points yet, need at least 2\n";
+			$next_points = twdac($rtdata_hist->[0]{points});
+		}
+
+		@points = ();
+		@points = @$next_points;
+
+		print "randomizing points ...";
+        randomize_points($num_points, $range, \@points);  # *mutates @points
+        foreach my $point (@points) {
+            $table->set($point->[0], $point->[1], $point->[2]);
+        }
+
+	    $table->save_file();
+	    `kill -HUP \`cat pid\``;
+		print "done\n";
+
+		$mode_n++;
+		$mode_n = 0 if ($mode_n >= @modes);
+	}
+}
+# }}}
+
+# {{{ record_menu()
+
+=head2 record_menu()
+
+Establishes the interface for recording points.
+
+Stores the newly recorded points in @points.
+Each point is stored with three values: [x, y, value].
+
+Stores the points to a file in the current directory
+named: msq-accel-<name><timestamp>-points-<mode>
+
+Stores the data a file in the current directory
+named: msq-accel-<name><timestamp>-rtdata-<mode>
+
+global variables: $rtdata
+
+=cut
+
+sub record_menu() {
+	my $timestamp = timestamp();
+	$out_file = "msq-accel-$name$timestamp-rtdata-$mode";
+	$out_points_file = "msq-accel-$name$timestamp-points-$mode";
+	# update documentation if these name templates are changed
+
+	print "outputting data to '$out_file'\n" if $DEBUG;
+	print "outputting points to '$out_points_file'\n" if $DEBUG;
+
+	my $out_points = MSQ::RTData->new($out_points_file, ["x", "y", $sv]);
+
+	my $rtdata_out = MSQ::RTData->new($out_file, [$rtdata->columns]);
+
+	my %points;  # used to create unique set of points
+
+	my $sel_stdin = IO::Select->new();
+	$sel_stdin->add(\*STDIN);
+
+	print "Press ENTER to stop recording.\n";
+	$rtdata->seek_end();  # skip first (old data)
+	while (1) {
+
+		# if user wants to stop ...
+		if ($sel_stdin->can_read(0)) {
+			<STDIN>;  # read and discard
+			$sel_stdin->remove(\*STDIN);
+			last;
+		}
+
+		my %cols = $rtdata->columns_hr();
+		my $px = $cols{$sx};
+		my $py = $cols{$sy};
+
+		while (my $vals = $rtdata->getline()) {
+			# get the values at their positions
+			my $x_val = $vals->[$cols{$sx}];
+			my $y_val = $vals->[$cols{$sy}];
+
+			# lookup the value at the current point
+			my $cur_point = ($table->lookup_points($x_val, $y_val, 0))[0];
+			my $cur_val = $table->get($cur_point->[0], $cur_point->[1]);
+			my $point_uid = join ", ", @$cur_point;  # unique identifier
+
+			$points{$point_uid} = [@$cur_point, $cur_val];
+
+			$rtdata_out->print($vals);
+		}
+
+		usleep(2e4);  # slow things down
+	}
+
+	@points = ();  # clear old points
+	foreach my $key (keys %points) {
+		push @points, $points{$key};
+	}
+
+	@points = sort {
+					if ($a->[0] == $b->[0]) {
+						($a->[1] <=> $b->[1]);
+					} else {
+						($a->[0] <=> $b->[0]);
+					}
+				} @points;
+
+	# save the points to a file
+	foreach my $point (@points) {
+		$out_points->print($point);
+	}
+
+	# newest point at offset 0
+	unshift @{$hist{$mode}}, { rtdata => $rtdata_out,
+				  		 	   points => \@points }
 }
 # }}}
 
@@ -262,11 +389,12 @@ sub randomize_points {
     my ($n, $r, $points) = @_;
 
     my $num_points = @$points;
+	return if (0 == $num_points);
 
     for (my $i = 0; $i < $n; $i++) {
         my $j = int(rand($num_points));  # offset of point to change
 
-        my $x = $points->[$j][2];  # value
+		my $x = $points->[$j][2];  # value
 
         my $d = $x * $r;
         $d = rand(2*$d) - $d;
@@ -279,126 +407,134 @@ sub randomize_points {
 }
 # }}}
 
-# {{{ main_menu()
-sub main_menu() {
-
-	while (1) {
-		$mode = $modes[$mode_n];
-
-		print "mode: $mode\n";
-		print "Press ENTER to begin recording.\n";
-		<STDIN>;
-
-		record_menu();
-		print "recording stopped\n";
-
-		print "randomizing points ...";
-        randomize_points($num_points, $range, \@points);
-        foreach my $point (@points) {
-            $table->set($point->[0], $point->[1], $point->[2]);
-        }
-
-	    $table->save_file();
-	    `kill -HUP \`cat pid\``;
-		print "done\n";
-
-		$mode_n++;
-		$mode_n = 0 if ($mode_n >= @modes);
-	}
+# {{{ timestamp
+sub timestamp {
+	my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
+	$year += 1900;
+	$month += 1;
+	return sprintf("%d%02d%02d-%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
 }
 # }}}
 
-# {{{ record_menu()
+# {{{ best_max_rpm
 
-sub record_menu() {
-	my $skip_first = 1;  # skip already present real time data
+=head2 best_max_rpm
 
-	my $timestamp = timestamp();
-	my $out_file = "msq-accel-$name$timestamp-rtdata-$mode";
-	my $out_points_file = "msq-accel-$name$timestamp-points-$mode";
+Determines which of the two real time data traces is best
+(maximizes rpm).
 
-	print "outputting data to '$out_file'\n" if $DEBUG;
-	print "outputting points to '$out_points_file'\n" if $DEBUG;
+Returns:  1 if first is better than second
+          0 if equal
+		 -1 if second is better than first
+		  (just like <=> or cmp)
 
-	unless (open (OUT, "> $out_file")) {
-		print STDERR "unable to open file '$out_file' for output: $!\n";
-		return;
-	}
-	my $oldfh = select(OUT);
-	$| = 1;  # flush output after every print
-	select($oldfh);
-	print OUT "$col_names\n";
+=cut
 
-	unless (open (OUT_POINTS, "> $out_points_file")) {
-		print STDERR "unable to open file '$out_points_file' for output: $!\n";
-		return;
-	}
-	my $oldfh = select(OUT_POINTS);
-	$| = 1;  # flush output after every print
-	select($oldfh);
-	#print OUT_POINTS "$sx,$sy,$sv\n";
-	print OUT_POINTS "x,y,$sv\n";  # points column names
+sub best_max_rpm {
+	my $rtdata1 = shift;
+	my $rtdata2 = shift;
 
-	my %points;  # used to create unique set of points
+	my %cols = $rtdata1->columns_hr;
+	# assumes rtdata2 has the same columns
 
-	my $sel_stdin = IO::Select->new();
-	$sel_stdin->add(\*STDIN);
+	# Assumes acceleration is increasing so that
+	# rpm at end is larger then at the begining.
+	$rtdata1->seek_start();
+	$rtdata2->seek_start();
+	my $min1 = $rtdata1->getline()->[$cols{rpm}];
+	my $min2 = $rtdata2->getline()->[$cols{rpm}];
 
-	print "Press ENTER to stop recording.\n";
-	while (1) {
+	$rtdata1->seek_last();
+	$rtdata2->seek_last();
+	my $max1 = $rtdata1->getline()->[$cols{rpm}];
+	my $max2 = $rtdata2->getline()->[$cols{rpm}];
 
-		# if user wants to stop ...
-		if ($sel_stdin->can_read(0)) {
-			<STDIN>;  # read and discard
-			$sel_stdin->remove(\*STDIN);
+	print "range 1: $min1, $max1\n" if $DEBUG;
+	print "range 2: $min2, $max2\n" if $DEBUG;
+
+	# find a common (comparable) range of rpms
+	my $min_rpm = ($min1 < $min2) ? $min2 : $min1;
+	my $max_rpm = ($max1 > $max2) ? $max2 : $max1;
+
+	print "min, max: $min_rpm, $max_rpm\n" if $DEBUG;
+
+	# Over the same range of rpms,
+	# the one with the short time interval is
+	# the better solution.
+
+	# find the starting and ending times.
+	$rtdata1->seek_start();
+	my ($ts1, $te1);
+	while (my $vals = $rtdata1->getline()) {
+		if ($vals->[$cols{rpm}] >= $min_rpm) {
+			$ts1 = $vals->[$cols{localtime}];
 			last;
 		}
-
-		# process all data
-		while (my $line = <RTDATA>) {
-			next if $skip_first;
-
-			my @vals = split /\s+/, $line;
-			my $x_val = $vals[$col_pos{$sx}];
-			my $y_val = $vals[$col_pos{$sy}];
-
-			my $cur_point = ($table->lookup_points($x_val, $y_val, 0))[0];
-			my $cur_val = $table->get($cur_point->[0], $cur_point->[1]);
-			my $point_uid = join ", ", @$cur_point;
-
-			$points{$point_uid} = [@$cur_point, $cur_val];
-
-			my $vals_str = join $SEP, @vals;
-			print OUT "$vals_str\n";
+	}
+	while (my $vals = $rtdata1->getline()) {
+		if ($vals->[$cols{rpm}] >= $max_rpm) {
+			last;
 		}
-		$skip_first = 0;
-		seek(RTDATA, 0, 1);  # reset EOF
+		$te1 = $vals->[$cols{localtime}];
+	}
+	my $dt1;
+	$dt1 = (defined $te1) ? ($te1 - $ts1) : 0;
+	print "dt1: $dt1  (ts=$ts1)\n" if $DEBUG;
 
-		usleep(2e4);  # slow things down
+	return 0 if (0 == $dt1); # not enough data to compare, assume equal
+
+	# do the same for rtdata2
+	$rtdata2->seek_start();
+	my ($ts2, $te2);
+	while (my $vals = $rtdata2->getline()) {
+		if ($vals->[$cols{rpm}] >= $min_rpm) {
+			$ts2 = $vals->[$cols{localtime}];
+			last;
+		}
+	}
+	while (my $vals = $rtdata2->getline()) {
+		if ($vals->[$cols{rpm}] >= $max_rpm) {
+			last;
+		}
+		$te2 = $vals->[$cols{localtime}];
+	}
+	my $dt2;
+	$dt2 = (defined $te2) ? ($te2 - $ts2) : 0;
+	print "dt2: $dt2  (ts=$ts2)\n" if $DEBUG;
+	return 0 if (0 == $dt2); # not enough data to compare, assume equal
+
+	return ($dt2 <=> $dt1);
+	# dt1 < dt2 -> 1, OK
+}
+# }}}
+
+# {{{ twdac
+
+=head2 twdac()
+
+Two dimensional array copy.
+
+=cut
+
+sub twdac {
+	my $ar = shift;
+
+	my @new_ar = ();
+
+	for (my $i = 0; $i < @$ar; $i++) {
+		$new_ar[$i] = [@{$ar->[$i]}];
 	}
 
-	@points = ();  # clear old points
-	foreach my $key (keys %points) {
-		push @points, $points{$key};
-	}
-
-	@points = sort {
-					if ($a->[0] == $b->[0]) {
-						($a->[1] <=> $b->[1]);
-					} else {
-						($a->[0] <=> $b->[0]);
-					}
-				} @points;
-
-	foreach my $point (@points) {
-		my $s = join $SEP, @$point;
-		print OUT_POINTS "$s\n";
-	}
-
-	close OUT_POINTS;
-	close OUT;
+	return \@new_ar;
 }
 # }}}
 
 # }}}
+
+main_menu();
+
+print "restoring original table\n" if $DEBUG;
+$orig_table->save_file();
+`kill -HUP \`cat pid\``;
+
 
