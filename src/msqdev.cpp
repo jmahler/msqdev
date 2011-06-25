@@ -40,7 +40,7 @@ static void sig_burn(int sig, siginfo_t *siginfo, void *context);
 static void sig_quit(int sig, siginfo_t *siginfo, void *context);
 
 enum { none, file, ecu, burn };
-int update = none;
+int update = file;
 bool quit = false;
 
 // {{{ log()
