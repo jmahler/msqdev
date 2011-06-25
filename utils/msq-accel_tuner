@@ -186,6 +186,10 @@ my $mode = $modes[0]; # current mode
 my $out_file;
 my $out_points_file;
 
+# global bool used to configured the direction
+# used by shift_points()
+my $shift_up_else_down = 1;
+
 # {{{ signal handlers
 
 # Ctrl-C
@@ -263,12 +267,15 @@ sub main_menu() {
 			if (1 == $cmp) {
 				print "best: new is better than previous\n";
 				$next_points = twdac($rtdata_hist->[0]{points});
+				#$shift_up_else_down = $shift_up_else_down;  # current direction OK
 			} elsif (-1 == $cmp) {
 				print "best: previous is better than new\n";
 				$next_points = twdac($rtdata_hist->[1]{points});
+				$shift_up_else_down = ! $shift_up_else_down;  # change direction
 			} else {
 				print "best: equal, reverting to previous\n";
 				$next_points = twdac($rtdata_hist->[1]{points});
+				#$shift_up_else_down = $shift_up_else_down;  # direction OK
 			}
 		} else {
 			print "best: not enough points yet, need at least 2\n";
@@ -454,7 +461,7 @@ sub shift_points {
 	print "shift_points()\n" if ($DEBUG);
 
 	# randomly up/down
-	my $neg = (1 == int(rand(2))) ? -1 : 1;
+	my $neg = $shift_up_else_down ? 1 : -1;
 	print "  neg: $neg\n" if ($DEBUG);
 
     for (my $i = 0; $i < $num_points; $i++) {
