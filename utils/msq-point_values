@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+use strict;
+
+use MSQ::RTData;
+use Text::LookUpTable;
+
+#
+# Copyright (C) 2011 Jeremiah Mahler <jmmahler@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+
+#
+# Given a set of points and a table, describe the points
+#
+
+my $pname = (split /\//, $0)[-1];  # program name without directories
+my $usage =  <<"USAGE";
+  USAGE:
+    $pname <table file> <points file>
+USAGE
+
+if (@ARGV < 2) {
+	die $usage;
+}
+
+my $table_file = shift @ARGV;
+my $points_file = shift @ARGV;
+
+die "table file '$table_file' does not exist\n" unless (-e $table_file);
+
+die "points file '$points_file' does not exist\n" unless (-e $points_file);
+
+my $table = Text::LookUpTable->load_file($table_file)
+	or die "unable to open table in file '$table_file': $!\n";
+
+my $points = MSQ::RTData->new($points_file)
+	or die "unable to open file '$points_file': $!\n";
+
+while (my $point = $points->getline()) {
+	my ($x, $y, $val) = @$point;
+
+	my @x_coords = $table->get_x_coords();
+	my $xc = $x_coords[$x];
+
+	my @y_coords = $table->get_y_coords();
+	my $yc = $y_coords[$y];
+
+	print "x=$x, xc=$xc, yc=$yc, y=$y, val=$val\n";
+}
+
