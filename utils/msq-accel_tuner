@@ -190,6 +190,8 @@ my $out_points_file;
 # used by shift_points()
 my $shift_up_else_down = 1;
 
+$| = 1;  # flush STDOUT after every print
+
 # {{{ signal handlers
 
 # Ctrl-C
