@@ -424,9 +424,7 @@ int main(int argc, char** argv)
 
 				if (DEBUG) { cout << "hasChanges()?\n"; }
 				if (table->hasChanges()) {
-					log("cpEcuToFile()");
 					table->cpEcuToFile();
-					log("writeFile()");
 					table->writeFile();
 				}
 			}
