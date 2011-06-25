@@ -194,11 +194,7 @@ my $shift_up_else_down = 1;
 
 # Ctrl-C
 $SIG{INT} = sub {
-	print "restoring original table\n" if $DEBUG;
-	$orig_table->save_file();
-	`kill -HUP \`cat pid\``;
-
-	exit 0;
+	quit();
 };
 
 # }}}
@@ -603,12 +599,29 @@ sub twdac {
 }
 # }}}
 
+# {{{ quit
+sub quit {
+
+	print "\n";
+	print "keep current table (or restore original) [Y/n]? ";
+	my $choice = <STDIN>;
+	chomp($choice);
+
+	if ($choice eq '' or lc($choice) eq 'y') {
+		print "keeping current table\n";
+	} else {
+		print "restoring original table\n";
+		$orig_table->save_file();
+		`kill -HUP \`cat pid\``;
+	}
+
+	exit 0;
+}
+# }}}
+
 # }}}
 
 main_menu();
 
-print "restoring original table\n" if $DEBUG;
-$orig_table->save_file();
-`kill -HUP \`cat pid\``;
-
+quit();
 
