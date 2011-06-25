@@ -134,17 +134,16 @@ should be more forgiving in this respect because it does not require
 stabilization and it is not depenent on any specific throttle position
 or load.
 
-\section{Constant Acceleration}
+\section{Maximizing Acceleration: Theory}
 \label{sec:conacc}
-(in development)
 
 Under a constant load and a constant throttle position
 (assuming the throttle position is such to cause acceleration)
-a constant acceleration should result.
-Strictly speaking the acceleration will not be constant due to
+a constant acceleration should result
+\footnote{Strictly speaking the acceleration will not be constant due to
 changes in load and varying performance of the engine.
 For the purposes of this document this term will be used to
-refer to acceleration as opposed to no acceleration.
+refer to acceleration as opposed to no acceleration.}.
 
 In contrast to steady state tuning where a single setting is varied
 at a single point, acceleration goes through through many points
@@ -152,19 +151,49 @@ and there is not enough time to vary the settings at each point.
 If two trials are performed under the same conditions (load and throttle
 position) with different settings these trials can be compared.
 
-One difficulty with this method is having to align the data for comparison.
-Perhaps a starting and ending rpm range with a constant throttle position
-throughout.
+Because it would be nearly impossible to record two sets of data with
+exactly the same starting and ending points (rpm or time) it
+is necessary to process the data in order to make a valid comparison.
 
-If optimizing for maximum power using a plot of rpm versus time the settings
-with the highest rpm in the shortest period of time would be the optimal
-solution.  An integral could be used to find the area and the settings with
-the largest area would have the greates acceleration.
+One solution is two remove data from the ends of each set of data until
+they span identical intervals.
+The starting and ending rpm ranges could be reduced to only those rpms
+in common for example.
+Depending on the amount of error in the rpm readings there will be error
+in which the starting and ending times are calculated.
+It is estimated that this could be as much as a tenth of a second.
+But this error should be minimized over many trials.
+Also, if many points in one trial are better than those in the other
+trial it should cause the end points to diverge which should also minimize
+the contribution of this error.
+
+If optimizing for maximum acceleration using a plot of rpm versus time
+the settings in which an rpm interval is covered in the shortest period
+of time would be the more optimal solution.
 
 Unlike steady state tuning this method does not lend it self to hill climbing.
 Since many variables are changed it may be better solved using Genetic Algorithms.
 
-\section{throttle response}
+\section{Maximizing Acceleration: Initial Results}
+
+Initial results of acceleration tuning are very promising.
+As is seen in Figure \ref{fig:atun1} the data points of trial 1 are
+lower than trial 2 indicating that trial 2 produced a greater acceleration
+(steeper slope, shorter time period).
+It is capable of detecting very minute changes in power output,
+as in the figure which shows less than a tenth of a second time difference
+between the two results.
+It is susceptible to changes in load just like every other test but these
+errors can by ensuring consistent test environments and performing many trials.
+
+\begin{figure}[!hbt]
+\center
+\includegraphics[scale=0.6]{msq-accel-4g_52cm_45-65mph-20110624-16:51:49-rtdata-single.png}
+\caption{Comparison of two acceleration trials in 4th gear with a 52 cm throttle stop from 45 to 65 mph.}
+\label{fig:atun1}
+\end{figure}
+
+\section{Throttle Response Tuning}
 (in development)
 
 The biggest difficulty with tuning throttle response is producing

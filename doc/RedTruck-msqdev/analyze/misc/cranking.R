@@ -30,11 +30,29 @@ asetaper <- c(350, 330, 310, 290, 270, 250, 230, 210, 180, 150)
 #crpulse1 <- 326
 #crpulse2 <- 101
 
+# #1 (start)
 # [http://www.msextra.com/doc/ms2extra/MS2-Extra_Tuning_Manual.html#start_idle]
-t1 <- -40  # degF
+#
+# date: Fri, 24 Jun 2011 16:07:30 -0700
+# crank time: not great
+# host start: helps to depress the throttle
+#
+#t1 <- -40  # degF
+#t2 <- 159
+#crpulse1 <- 320
+#crpulse2 <- 101
+
+# #2
+# leaner hot setting
+#
+# date: ?
+# crank time: ?
+# hot start: ?
+#
+t1 <- -40
 t2 <- 159
 crpulse1 <- 320
-crpulse2 <- 101
+crpulse2 <- 90   # leaner setting
 
 
 A <- matrix(c(t1, t2, 1, 1), nrow=2)
@@ -46,6 +64,6 @@ crfn <- function(x) {
 	coef[1] * x + coef[2]
 }
 
+# plug these values in to the cranking pulse map
 crpulse <- crfn(temp)
-
 
