@@ -3,7 +3,7 @@
 
 \usepackage[pdftex]{graphicx}
 %\usepackage{graphicx}
-%\usepackage{amsmath}
+\usepackage{amsmath}
 \usepackage{url}
 %\usepackage{apacite}
 %\usepackage{mslapa}
@@ -134,7 +134,7 @@ should be more forgiving in this respect because it does not require
 stabilization and it is not depenent on any specific throttle position
 or load.
 
-\section{Maximizing Acceleration: Theory}
+\section{Acceleration Tuning: Theory}
 \label{sec:conacc}
 
 Under a constant load and a constant throttle position
@@ -174,7 +174,8 @@ of time would be the more optimal solution.
 Unlike steady state tuning this method does not lend it self to hill climbing.
 Since many variables are changed it may be better solved using Genetic Algorithms.
 
-\section{Maximizing Acceleration: Initial Results}
+\section{Acceleration Tuning: Initial Results}
+\label{sec:mair}
 
 Initial results of acceleration tuning are very promising.
 As is seen in Figure \ref{fig:atun1} the data points of trial 1 are
@@ -193,6 +194,45 @@ errors can by ensuring consistent test environments and performing many trials.
 \label{fig:atun1}
 \end{figure}
 
+\section{Acceleration Tuning: Issues}
+
+Acceleration tuning works well (see Section \ref{sec:mair})
+but it is not ominoptent.
+Specifically how values are modified determines how it will perform.
+Shifting values up or down can find an relatively optimal solution within a
+few trials but it cannot change the slope.
+Randomizing values could be used as well but this would take many
+trials to find an optimal solution and it does not take advantage of
+available information.
+
+During a steady acceleration, if the goal is to maximize acceleration,
+the air fuel ratio should be constant or nearly so throughout the trial.
+See Figure \ref{fig:ati} for an example of when the air fuel ratio is inconsistent.
+If the settings can be found which provide a constant air fuel ratio then
+shifting values up or down can be used to find the most optimal solution.
+
+\begin{figure}[!htb]
+\center
+\includegraphics[scale=0.5]{accel-afr/msq-accel-tmp-20110625-15:21:06-rtdata-single.png}
+\caption{Large variations in air fuel ratio during steady acceleration.
+Ideally the air fuel ratio should remain constant.}
+\label{fig:ati}
+\end{figure}
+
+A reasonable way to achieve the desired air fuel ratio would be to try
+various ve settings and from the resulting air fuel ratios construct
+an equation which predicts results at other points.
+Some sources suggest this is simply described as in Equation \ref{eq:ve}
+but data analysis does confirm this behaviour.
+\begin{align}\label{eq:ve}
+v_f &= v_i \cdot \frac{f_a}{f_d} \\
+ v_f &: \quad \mbox{final ve} \notag \\
+ v_i &: \quad \mbox{initial ve} \notag \\
+ f_a &: \quad \mbox{actual air fuel ratio at $v_i$, (e.g. $14.7$)} \notag \\
+ f_d &: \quad \mbox{desired air fuel ratio} \notag
+\end{align}
+
+
 \section{Throttle Response Tuning}
 (in development)
 
@@ -203,6 +243,8 @@ when a match is found with different settings it can be used for
 comparison.
 Another possibility is to build a mechanical apparatus using a solenoid
 or some other device which precisely actuates the throttle.
+
+
 
 \pagebreak
 
