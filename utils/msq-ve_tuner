@@ -1,0 +1,266 @@
+#!/usr/bin/perl
+use strict;
+
+#
+# Copyright (C) 2011 Jeremiah Mahler <jmmahler@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+=head2 DESCRIPTION
+
+This program automates the task of adjusting the ve values
+to achieve a desired mixture.
+This is similar to "autotune" in TunerStudio except that it currently
+only adjusts to a single air fuel ratio and does not use afrTable1.
+
+=cut
+
+use Text::LookUpTable;
+use Time::HiRes qw(usleep);
+use IO::Select;
+use MSQ::RTData;
+
+# {{{ process @ARGV
+
+# config variables
+my $rtdata_in_file	= "rtdata"; # real time data file
+my $goal_afr1		= 12.4;   	# goal air fuel ratio
+my $change_delay	= 3;   		# change_delay in seconds
+my $DEBUG			= 0;
+
+# constants
+my $min_inc = 1;			# minimum increment amount 
+my $pname = (split /\//, $0)[-1];  # name of this program without spaces
+my $table_file = 'veTable1';
+
+my $usage = <<"HERE";
+  USAGE:
+
+	$pname [<options>]
+
+	  data is output to msq-ve_tuner-<time stamp>
+
+  OPTIONS:      [default value]  description
+
+    -rd         [$rtdata_in_file] real time data file
+    -a          [$goal_afr1] air fuel ratio (goal)
+    -cd         [$change_delay] time (seconds) to delay after a change
+    -d          [$DEBUG] enable debugging (1) or disable (0)
+    -h          this screen
+
+  RUNNING COMMANDS:
+
+   ENTER        pause/resume recording
+   Ctrl-C       quit
+
+HERE
+
+# process @ARGV
+{
+
+my $i;
+
+# utility for checking a required second argument
+my $req_arg_fn = sub {
+	my $op = shift;
+
+	if (($i + 1) >= @ARGV) {
+		print STDERR "option '$op' requires an argument. See help ($pname -h)\n";
+		#print STDERR $usage;
+		exit 1;
+	}
+
+	$i++;  # skip the second argument during the next iteration
+
+	return $ARGV[$i];  # return the second argument
+};
+
+for ($i = 0; $i < @ARGV; $i++) {
+	my $s1 = $ARGV[$i];
+
+    if ($s1 eq '-h') {
+		print $usage;
+		exit;
+    } elsif ($s1 eq '-rd') {
+        $rtdata_in_file = $req_arg_fn->('-rd');
+    } elsif ($s1 eq '-a') {
+        $goal_afr1 = $req_arg_fn->('-a');
+    } elsif ($s1 eq '-cd') {
+        $change_delay = $req_arg_fn->('-cd');
+    } elsif ($s1 eq '-d') {
+        $DEBUG = $req_arg_fn->('-d');
+    } else {
+		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
+		exit 1;
+    }
+}
+}
+
+# }}}
+
+# {{{ setup data sources/sinks (filehandles)
+
+# get a time stamp for creating a unique file
+my ($month, $day, $year, $hour, $min, $sec) = (localtime)[4, 3, 5, 2, 1, 0];
+$year += 1900;
+$month += 1;
+my $rtdata_out_file = sprintf("msq-ve_tuner-%d%02d%02d-%02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+
+$| = 1;  # flush STDOUT after every print
+
+my $s = IO::Select->new();
+$s->add(\*STDIN);
+
+my $table = Text::LookUpTable->load_file($table_file)
+	or die "unable to open table in file '$table_file': $!\n";
+my $orig_table = $table->copy();
+
+
+my $rtdata_in = MSQ::RTData->new($rtdata_in_file)
+	or die "unable to open file '$rtdata_in_file': $!\n";
+
+# out data is the rtdata while recording
+my $rtdata_out = MSQ::RTData->new($rtdata_out_file, [$rtdata_in->columns])
+	or die "unable to open file '$rtdata_out_file': $!\n";
+# }}}
+
+# {{{ sub quit()
+sub quit {
+
+	print "\n";
+	print "keep current table (or restore original) [Y/n]? ";
+	my $choice = <STDIN>;
+	chomp($choice);
+
+	if ($choice eq '' or lc($choice) eq 'y') {
+		print "keeping current table\n";
+	} else {
+		print "restoring original table\n";
+		$orig_table->save_file();
+		`kill -HUP \`cat pid\``;
+	}
+
+	exit 0;
+}
+# }}}
+
+# {{{ signal handlers, Ctrl-C
+
+# Ctrl-C
+$SIG{INT} = sub {
+	quit();
+};
+
+# }}}
+
+
+# main loop
+print "Press ENTER to pause/resume tuning\n";
+print "Press Ctrl-C to quit\n";
+
+my %point_change;  # stores times when points were changed
+my %cols = $rtdata_in->columns_hr();
+$rtdata_in->seek_end();  # skip old data
+my $has_changes = 0;
+
+my $start_paused = 1;
+while (1) {
+
+	# {{{ ENTER menu, pause/resume
+	if ($s->can_read(0) or $start_paused) {
+
+		if ($start_paused) {
+			$start_paused = 0;  # reset
+		} else {
+			<STDIN>;  # read and discard
+		}
+
+		print "PAUSED: press ENTER to resume\n";
+		<STDIN>;  # block for ENTER
+
+		# skip intermediate data
+		$rtdata_in->seek_end();
+	}
+	# }}}
+
+	while (my $vals = $rtdata_in->getline()) {
+
+		# save the data
+		$rtdata_out->print($vals);
+
+
+		# adjust the value in the table
+
+		my $afr1     = $vals->[$cols{afr1}];
+		my $rpm 	 = $vals->[$cols{rpm}];
+		my $fuelload = $vals->[$cols{fuelload}];
+		my $ver      = $vals->[$cols{veCurr1}];  # ve in rtdata
+
+		# get the single nearest point
+		my $point = ($table->lookup_points($rpm, $fuelload, 0))[0];
+
+		my $vet = $table->get($point->[0], $point->[1]);  # ve in table
+
+		my $puid = $point->[0] . "," . $point->[1];  # point unique identifier
+
+		#print "ver, vet: $ver, $vet\n" if $DEBUG;
+
+		# new entry
+		unless (exists $point_change{$puid}) {
+			# initialize with an expired time so a change will occur
+			$point_change{$puid} = time() - ($change_delay + 1);
+		}
+		# skip if change delay has not elapsed
+		if ((time() - $point_change{$puid}) < $change_delay) {
+			#print "delay...\n" if $DEBUG;
+			#print "~" if $DEBUG;
+			next;
+		}
+
+		if (abs($afr1 - $goal_afr1) > 0.1) {
+			# difference in afr is large enough to warrant a change
+
+			my $new_ve;
+			if ($afr1 < $goal_afr1) {
+				# too rich, lean it out
+				print "-";
+				$new_ve = $vet - $min_inc;
+			} elsif ($afr1 > $goal_afr1) {
+				# too lean, richen it up
+				print "+";
+				$new_ve = $vet + $min_inc;
+			}
+
+			print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
+
+			$point_change{$puid} = time();  # reset delay
+			$table->set($point->[0], $point->[1], $new_ve);
+			$has_changes = 1;
+		} else {
+			#print "=";
+		}
+	}
+
+	if ($has_changes) {
+		$has_changes = 0;
+
+		$table->save_file();
+		`kill -HUP \`cat pid\``;   # tell msqdev update the ecu
+	}
+
+
+	usleep(2e4);    	# slow things down
+}
+
