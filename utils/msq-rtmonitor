@@ -85,6 +85,8 @@ for (my $i = 0; $i < @col_sel; $i++) {
 $| = 1;
 my $skip_first = 1;  # skip any already stored data
 
+my @max_len;  # max number of spaces, used for even column output
+
 # process all remaining lines, and tail the file
 while (1) {
 	while (my $line = <IN>) {
@@ -94,10 +96,22 @@ while (1) {
 		
 		my @vals = ();
 		for (my $i = 0; $i < @col_selp; $i++) {
-			push @vals, $parts[$col_selp[$i]];
+			my $val = $parts[$col_selp[$i]];
+			my $lval = length($val);
+
+			if ((! defined $max_len[$i]) or $lval > $max_len[$i]) {
+				$max_len[$i] = $lval;
+			}
+
+			my $maxl = $max_len[$i];
+			while (length($val) < $maxl) {
+				$val .= " ";
+			}
+
+			push @vals, $val;
 		}
 
-		my $vals = join " ", @vals;
+		my $vals = join "  ", @vals;
 
 		print "$vals\n";
 	}
