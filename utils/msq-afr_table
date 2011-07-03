@@ -1,0 +1,179 @@
+#!/usr/bin/perl
+use strict;
+
+use Text::LookUpTable;
+
+# {{{ process @ARGV, configure defaults
+my $pname = (split /\//, $0)[-1];  # name of this program without spaces
+
+my $afrTable1_file = "afrTable1";
+my $veTable1_file = "veTable1";
+
+# These constants where obtained from
+#   RedTruck-msqdev/analyze/ve_tuner.R
+my $a = -0.1399;
+my $b = 0.0525;
+my $c = 0.0004;
+my $d = 17.9873;
+
+my @avail_modes = qw(constant to_afrTable to_veTable1);
+my $mode = 'constant';
+my $afr = 14.7;
+
+my $usage = <<"HERE";
+    USAGE:
+       $pname [<options>] 
+
+       $pname is used to modify the tables (veTable1, afrTable1) based
+       on the linear function that predicts its behavior.
+
+    OPTIONS:
+        (afr1 = a*veCurr1 + b*fuelload + c*rpm + d)
+
+        These constants would normally be obtained from a least
+        squares fit such as with analyze/ve_tuner.R
+
+        -a                  [$a] veCurr1 constant
+        -b                  [$b] fuelload constant
+        -c                  [$c] rpm constant
+        -d                  [$d] intercept constant
+
+        -afrf               [$afrTable1_file] afr table file
+        -vef                [$veTable1_file] ve table file
+
+        -m                  [$mode] set the mode (see below)
+
+        -m constant         set a constant afr over entire veTable
+          -afr $afr
+
+        -m to_afrTable1     convert values in veTable1 to afrTable1 
+        -m to_veTable1      convert values in afrTable1 to veTable1
+
+        -h                  help menu (this page)
+HERE
+
+{
+my $s1;
+my $s2;
+my $i;
+
+# utility for checking a required second argument
+my $req_arg_fn = sub {
+	my $op = shift;
+
+	if (($i + 1) >= @ARGV) {
+		print STDERR "option '$op' requires an argument. See help ($pname -h)\n";
+		exit 1;
+	}
+
+	$i++;  # skip the second argument during the next iteration
+
+	return $ARGV[$i];  # return the second argument
+};
+
+for ($i = 0; $i < @ARGV; $i++) {
+	$s1 = $ARGV[$i];
+
+    if ($s1 eq '-h') {
+		print $usage;
+		exit;
+	} elsif ($s1 eq '-a') {
+        $a = $req_arg_fn->('-a');
+	} elsif ($s1 eq '-b') {
+        $b = $req_arg_fn->('-b');
+	} elsif ($s1 eq '-c') {
+        $c = $req_arg_fn->('-c');
+	} elsif ($s1 eq '-d') {
+        $d = $req_arg_fn->('-d');
+	} elsif ($s1 eq '-afrf') {
+        $afrTable1_file = $req_arg_fn->('-afrf');
+    } elsif ($s1 eq '-vef') {
+        $veTable1_file = $req_arg_fn->('-vef');
+	} elsif ($s1 eq '-m') {
+        $mode = $req_arg_fn->('-m');
+        unless (grep $mode, @avail_modes) {
+            print STDERR "mode '$mode' not one of the available modes. See help ($pname -h)\n";
+            exit 1;
+        }
+	} elsif ($s1 eq '-afr') {
+        $afr = $req_arg_fn->('-afr');
+    } else {
+		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
+		exit 1;
+    }
+}
+}
+
+# }}}
+
+if ($mode eq 'constant') {
+    my $veTable1 = Text::LookUpTable->load_file($veTable1_file)
+	    or die "Unable to load veTable1 from file '$veTable1_file': $!\n";
+
+    my @xc = $veTable1->get_x_coords();
+    my @yc = $veTable1->get_y_coords();
+    my $num_x = @xc;
+    my $num_y = @yc;
+
+    for (my $x = 0; $x < $num_x; $x++) {
+        for (my $y = 0; $y < $num_y; $y++) {
+            my $rpm = $xc[$x];
+            my $fuelload = $yc[$y];
+
+            # afr function solved for ve
+            my $ve = (1.0/$a)*($afr - $b*$fuelload - $c*$rpm - $d);
+
+            # ve values are only integers
+            $ve = int($ve);
+
+            $veTable1->set($x, $y, $ve);
+        }
+    }
+
+    $veTable1->save_file();
+} elsif ($mode eq 'to_veTable1') {
+    my $afrTable1 = Text::LookUpTable->load_file($afrTable1_file)
+        or die "Unable to load afrTable1 from file '$afrTable1_file': $!\n";
+
+    my $veTable1 = Text::LookUpTable->load_file($veTable1_file)
+	    or die "Unable to load veTable1 from file '$veTable1_file': $!\n";
+
+    my @xc = $veTable1->get_x_coords();
+    my @yc = $veTable1->get_y_coords();
+    my $num_x = @xc;
+    my $num_y = @yc;
+
+    for (my $x = 0; $x < $num_x; $x++) {
+        for (my $y = 0; $y < $num_y; $y++) {
+            my $rpm = $xc[$x];
+            my $fuelload = $yc[$y];
+
+            # find the nearest point
+            my $point = ($afrTable1->lookup_points($rpm, $fuelload, 0))[0];
+
+            # does not extrapolate values
+            my $afr = $afrTable1->get($point->[0], $point->[1]);
+
+            # afr function solved for ve
+            my $ve = (1.0/$a)*($afr - $b*$fuelload - $c*$rpm - $d);
+
+            # ve values are only integers
+            $ve = int($ve);
+
+            $ve = 0 if ($ve < 0);
+
+            $veTable1->set($x, $y, $ve);
+        }
+    }
+
+    $veTable1->save_file();
+
+
+} else {
+    # TODO - to_afrTable1
+
+    print "mode '$mode' has not been implemented yet.\n";
+    exit;
+
+}
+
