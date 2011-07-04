@@ -1,4 +1,11 @@
-*.swp
 log
 *~
 msqdev
+*.aux
+*.bbl
+*.blg
+*.log
+*.toc
+*.swp
+*.bib
+*.dvi
