@@ -6,7 +6,7 @@
 # To run this script start R and source this file
 #
 # bash$ R
-# > source("ve_tuner.R")
+# > source("afr_predict.R")
 # Loading required package: MASS
 # 
 # Call: rlm(formula = afr1 ~ veCurr1 + fuelload + rpm, maxit = 40)

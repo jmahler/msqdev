@@ -7,6 +7,6 @@
 	# to run this file
 	# php -f <this file>
 
-	echo shell_exec("cat analyze/ve_tuner.R");
+	echo shell_exec("cat analyze/afr_predict.R");
 ?>
 \end{verbatim}

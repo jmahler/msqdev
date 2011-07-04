@@ -1,18 +1,16 @@
 
-DEPS=appA-ve_tuner.tex
-
 all: main.pdf
 
-appA-ve_tuner.tex: appA-ve_tuner.tex.php analyze/ve_tuner.R
+appA-afr_predict.tex: appA-afr_predict.tex.php analyze/afr_predict.R
 	php -f $< > $@
 
-main.dvi: main.tex main.bib $(DEPS)
+main.dvi: main.tex main.bib appA-afr_predict.tex
 	rubber $<
 
-main.pdf: main.tex main.bib $(DEPS)
+main.pdf: main.tex main.bib appA-afr_predict.tex
 	rubber --pdf $<
 
-main.ps: main.tex main.bib $(DEPS)
+main.ps: main.tex main.bib appA-afr_predict.tex
 	rubber --ps $<
 
 clean:
