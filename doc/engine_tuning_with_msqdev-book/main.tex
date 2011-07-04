@@ -27,48 +27,87 @@
 
 \section{Introduction}
 
-Tuning an engine can be easy or difficult depending upon
-how many variables are available to be altered.
-For example if ignition timing is controlled by a mechanical
-distributor the only variable that can be changed is the base timing.
-If it is computer controlled then there is an entire map
-of variables that can be changed.
-
-Megasquirt \cite{MEGA11} is an open source fuel injection and ignition
-control system.
-It provides a huge number variables that can be altered but
-it is also difficult to optimize.
-
-The Msqdev system \cite{MAHL11} was created to make
-Megasquirt easier to optimize.
-It controls the ecu through an interface of files and directories.
-Tables are defined in a format which is easy to edit.
-Programs are provided (or can be written) which can
-collect data or modify settings in an automated manner.
-And the data can be analyzed with a system such as R \cite{R}.
-
-In general the goal of tuning is to find two points to compare
-and to choose the best one.
-Ideally all the variables in the two points to compare should be
-the same except for the one variable that is varied.
-Achieving this with Megasquirt can be difficult.
-For example, to keep the ignition timing constant all the values in
-the ignition map could be set to the same value.
-But there are other settings, such as "MAT Based Timing Retard"
-which are dependent on the ignition map and influence the timing.
-There are even settings which when set to zero (which suggests they
-would have no effect) actually do such as with the "Nonlinear MAT Correction".
+The Megasquirt \cite{MEGA11} engine controller allows for the
+control of nearly every possible parameter of a running engine.
+But this wide spectrum of parameters also makes it difficult to tune.
+The typical tuning method \cite{MEGAMAN} is based on rules of thumb
+and imprecise judgements of performance.
+The Msqdev system \cite{MAHL11} was created to provide a
+methodical method of tuning with provable metrics of performance.
 
 The design of Msqdev consists of various parts.
-The \verb+msqdev+ daemon establishes the interface between the files and the
-Megasquirt ecu.
+In general small robust programs are preferred over large all encompassing ones.
+The \verb+msqdev+ daemon creates the interface to the ecu.
+It monitors a directory of files which describe the settings and
+communicates over the serial port to the Megasquirt ecu when these
+files are changed or need to be updated.
 There are utilities such as \verb+msq-ve_tuner+ for automatically
 tuning the fuel mixture and \verb+msq-accel_tuner+ for performing
-acceleration tuning.
+acceleration tuning as well as many others.
+The utilities are small since they only read and write files and it
+is easy to create new ones.
 Plotting and analysis of captured data is most often done using
 R \cite{R} scripts.
-Small robust programs are preferred over large all encompassing
-programs.
+
+\subsection{Installation}
+
+This project is still in early development and the installation
+described here allows for updates to be easily performed.
+
+The first step is to retrieve a copy of the current project.
+The best way is by using Git \cite{GIT} with the command below.
+If Git is not not available the package can be downloaded and unpacked
+directly.
+The recommended placement is in the users directory (\verb+~/msqdev+)
+which is the default if the git clone command is run in the home directory.
+
+\begin{verbatim}
+git clone https://github.com/jmahler/msqdev.git
+\end{verbatim}
+
+After the Msqdev package has been successfully retrieved and unpacked
+it is necessary to compile the \verb+msqdev+ daemon.
+This is done by changing to the \verb+msqdev/src/+ directory and typing
+\verb+make+.
+If all goes correctly the \verb+msqdev+ executable will be produced.
+
+In order to access the binaries from any location it is necessary to
+configure the users \verb+PATH+.
+The recommended way is to add the \verb+~/bin+ to the \verb+PATH+ environment
+variable and then to create symbolic links from inside \verb+bin+ directory
+to those in \verb+msqdev+.
+
+\begin{verbatim}
+jeri@bishop ~$ ls ~/bin | grep msq
+msq-accel_tuner
+msq-afr_table
+msqdev
+msq-point_values
+msq-rtmonitor
+msq-speed_tuner
+msq-table_points
+msq-ve_tuner
+jeri@bishop ~$ grep PATH ~/.bashrc
+export PATH="$HOME/bin:$PATH"
+jeri@bishop ~$ env | grep PATH
+PATH=/home/jeri/bin:/usr/local/bin:/usr/bin:/bin
+ri/QuizMaker/bin:/home/jeri/QuizMaker/bin
+\end{verbatim}
+
+The final step is to verify that \verb+msqdev+ works.
+The following is an example of the steps used on one system.
+
+\begin{verbatim}
+jeri@bishop ~$ mkdir tmp-msqdev
+jeri@bishop ~$ cd tmp-msqdev
+jeri@bishop tmp-msqdev$ ls  # directory is empty
+jeri@bishop tmp-msqdev$ msqdev /dev/ttyUSB0 
+Mon Jul  4 16:34:17 2011: start
+Mon Jul  4 16:34:31 2011: updating files from ecu
+^Cjeri@bishop tmp-msqdev$   # quit by Ctrl-C
+jeri@bishop tmp-msqdev$ ls  # msqdev created files
+advanceTable1  afrTable1  pid  rtdata  veTable1
+\end{verbatim}
 
 \section{Steady State Tuning}
 \label{sec:steadytun}
