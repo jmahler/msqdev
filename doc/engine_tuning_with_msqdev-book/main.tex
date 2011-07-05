@@ -150,6 +150,7 @@ indicated by the gap in the center..}
 \label{fig:ssrerr}
 \end{figure}
 
+
 \section{Acceleration Tuning}
 \label{sec:acctun}
 
@@ -166,6 +167,17 @@ The throttle stop is a fixed length object such as a piece of tubing which
 can be placed underneath the gas pedal to limit its travel.
 Support in the tuning program can provided to start/stop recording so
 that a trial is only recording while the pedal is against the stop.
+
+\begin{figure}[!htbp]
+\center
+\includegraphics[scale=0.8]{msq-accel-4g_52cm_45-65mph-20110627-20:17:43-rtdata-single}
+\caption{Comparison of two acceleration tuning trials.
+Each trial is constrained to the same range of rpms.
+Because the second trial reached the given rpm in a shorter time
+period it maximized acceleration compared to the first trial.}
+\label{fig:acctun}
+\end{figure}
+
 
 % TODO - picture of throttle stop
 
@@ -200,7 +212,7 @@ fuel ratio will be.
 This has the added benefit of being able to instantly set the air fuel ratio
 to any desired value.
 
-\subsection{Predicting The Air Fuel Ratio}
+\subsection{Predicting Air Fuel Ratios}
 \label{sec:predafr}
 
 % procedure, step 1
@@ -215,12 +227,24 @@ rather data samples of the air fuel ratio for a given setting are what
 matter.
 
 % procedure, step 2
-Once a adequate data sample has been recorded it can be processed 
+Once an adequate data sample has been recorded it can be processed 
 using the R script \verb+afr_predict.R+ (Appendix \ref{app:afrpred})
 which performs a least squares fit to find the coefficients which define
 the linear function.
 These coefficients can then be used with the Msqdev utility \verb+msq-afr_table+
 to build tables with any desired air fuel ratio.
+
+There are several sources of error when predicting air fuel ratios.
+Acceleration enrichment would skew the results because additional
+fuel is added which is not accounted for.
+This error can be eliminated by disabling enrichment or by only
+moving the throttle slowly.
+Another source of error is with the delay between when settings are
+executed and when the oxygen sensor reads the value.
+Wide band Oxygen sensor response times are typically very fast it
+is estimated that the delay would be no more the a half second.
+More work is needed to determine the magnitude of these errors and
+how they can be compensated for.
 
 \FloatBarrier  % keep all the figures in this section
 
