@@ -126,6 +126,8 @@ if ($mode eq 'constant') {
             # ve values are only integers
             $ve = int($ve);
 
+            $ve = 0 if ($ve < 0);
+
             $veTable1->set($x, $y, $ve);
         }
     }

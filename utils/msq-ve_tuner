@@ -41,7 +41,7 @@ my $change_delay	= 3;   		# change_delay in seconds
 my $DEBUG			= 0;
 
 # constants
-my $min_inc = 1;			# minimum increment amount 
+my $min_inc = 5;			# minimum increment amount 
 my $pname = (split /\//, $0)[-1];  # name of this program without spaces
 my $table_file = 'veTable1';
 
@@ -242,6 +242,8 @@ while (1) {
 				print "+";
 				$new_ve = $vet + $min_inc;
 			}
+
+			$new_ve = 0 if ($new_ve < 0);
 
 			print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
 
