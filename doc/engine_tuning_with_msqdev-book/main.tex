@@ -178,15 +178,17 @@ period it maximized acceleration compared to the first trial.}
 \label{fig:acctun}
 \end{figure}
 
-
-% TODO - picture of throttle stop
-
-%This utility works by comparing two data recordings from two accelerations
-%under the same conditions but with different settings.
-%From the better setting the values will be shifted up/down and the process
-%repeated.
-%Eventually it will reach a maximum where it can no longer find a better
-%set of settings and this will be the best.
+As can be seen from Figure \ref{fig:acctun} Acceleration Tuning is good
+at discerning differences over a range which result in a cummulative
+difference.
+It would be very poor a discerening a few marginal adjustments.
+The values should be varied by considering this characteristic.
+When adjusting the ve table, for example, multiple values over the
+range should adjusted.
+If the adjustments could be made to produce a constant air fuel ratio
+over a trial this could be beneficial in finding the ratio that produces
+the greatest acceleration.
+Predicting air fuel ratios will be discussed in Section \ref{sec:predafr}.
 
 \section{Air Fuel Ratio}
 \label{sec:afr}
@@ -234,6 +236,8 @@ the linear function.
 These coefficients can then be used with the Msqdev utility \verb+msq-afr_table+
 to build tables with any desired air fuel ratio.
 
+
+
 There are several sources of error when predicting air fuel ratios.
 Acceleration enrichment would skew the results because additional
 fuel is added which is not accounted for.
@@ -248,7 +252,7 @@ how they can be compensated for.
 
 \FloatBarrier  % keep all the figures in this section
 
-\subsection{Finding The Air Fuel Ratio For Max Power}
+\subsection{Finding The Air Fuel Ratio For Maximum Power}
 \label{sec:findafrpow}
 
 Once the function which predicts the air fuel ratio has been found
@@ -256,6 +260,12 @@ Once the function which predicts the air fuel ratio has been found
 one produces the maximum power (maximum acceleration).
 In the Msqdev system this is accomplished using the utility
 \verb+msq-accel_tuner+ for performing acceleration tuning (Section \ref{sec:acctun}).
+
+A good general starting point for tuning the air fuel ratio is to
+configure the table so that a constant air fuel ratio is produced
+during a trial.
+Then the air fuel ratio can be adjusted during subsequent trials and
+their performance compared.
 
 \appendix
 \section{afr\_predict.R}

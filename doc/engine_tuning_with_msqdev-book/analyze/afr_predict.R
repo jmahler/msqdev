@@ -55,9 +55,10 @@ rpm 	 <- d1$rpm[filt0]
 
 
 # account for delay in afr1
-#dX <- 0
+# TODO - how does the filtering (above) affect the delay?  Is it correct?
+dX <- 0  # ok
 #dX <- 10  # ok
-dX <- 20  # ok
+#dX <- 20  # ok
 #dX <- 40
 #dX <- 60  # too far
 # shift forward
