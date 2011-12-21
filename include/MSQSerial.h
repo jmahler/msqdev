@@ -35,13 +35,13 @@
 
 using namespace std;
 
-int usleep(__useconds_t usec);  // to quiet the compiler
+int usleep(__useconds_t usec);  // to appease the compiler
 
 /**
  * Megasquirt serial device communications.
  *
  * These operations are meant to be generic to all
- * versions MegaSquirt.
+ * versions of MegaSquirt.
  * Version specific functionality is supported through
  * command arguments (see cmd_A() for an example).
  *
@@ -173,30 +173,36 @@ class MSQSerial {
 				fcntl(devfd, F_SETFL, 0);
 			}
 
+			// get current options
 			tcgetattr(devfd, &options);
 
+			// flush both
 			tcflush(devfd, TCIOFLUSH);
 
-			cfsetispeed(&options, 0);  // 0 -> same as ospeed
-			//cfsetispeed(&options, B115200);
+			//cfsetispeed(&options, 0);  // 0 -> same as ospeed
+			cfsetispeed(&options, B115200);
 			cfsetospeed(&options, B115200);
 
-			//options.c_cflag &= ~(CRTSCTS);
-			options.c_cflag |= (CLOCAL | CREAD);
-
-			//options.c_cflag &= ~(PARENB | PARODD);
-
+			// Control options (c_cflag)
+			options.c_cflag &= ~( PARENB | CSTOPB | CSIZE );
+			options.c_cflag |= CLOCAL | CREAD;
 			// No parity (8N1)
 			options.c_cflag &= ~PARENB;
 			options.c_cflag &= ~CSTOPB;
 			options.c_cflag &= ~CSIZE;
 			options.c_cflag |= CS8;
 
-			//options.c_iflag &= ~(IXON | IXOFF | IXANY);
-			//options.c_iflag = IGNBRK;
+			// Line options (clflag)
+			options.c_lflag = ~(ICANON | ECHO | ECHOE | ECHONL | IEXTEN | ISIG);
 
-			//options.c_oflag = 0;
+			// Input options (c_iflag)
+			// disable software flow control
+			options.c_iflag &= ~(IXON | IXOFF | IXANY);
 
+			// Output options (c_oflag)
+			options.c_oflag &= ~OPOST;
+
+			// Control characters
 			options.c_cc[VQUIT]    = 0;     /* Ctrl-\ */
 			options.c_cc[VERASE]   = 0;     /* del */
 			options.c_cc[VKILL]    = 0;     /* @ */
