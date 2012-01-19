@@ -18,14 +18,10 @@ use strict;
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-=head2 DESCRIPTION
-
-This program automates the task of adjusting the ve values
-to achieve a desired mixture.
-This is similar to "autotune" in TunerStudio except that it currently
-only adjusts to a single air fuel ratio and does not use afrTable1.
-
-=cut
+# This program automates the task of adjusting the ve values
+# to achieve a desired mixture.
+# This is similar to "autotune" in TunerStudio except that it currently
+# only adjusts to a single air fuel ratio and does not use afrTable1.
 
 use Text::LookUpTable;
 use Time::HiRes qw(usleep);
@@ -37,11 +33,11 @@ use MSQ::RTData;
 # config variables
 my $rtdata_in_file	= "rtdata"; # real time data file
 my $goal_afr1		= 12.4;   	# goal air fuel ratio
-my $change_delay	= 3;   		# change_delay in seconds
+my $change_delay	= 2;   		# change_delay in seconds
 my $DEBUG			= 0;
 
 # constants
-my $min_inc = 5;			# minimum increment amount 
+my $min_inc = 1;			# minimum increment amount 
 my $pname = (split /\//, $0)[-1];  # name of this program without spaces
 my $table_file = 'veTable1';
 
@@ -58,6 +54,7 @@ my $usage = <<"HERE";
     -a          [$goal_afr1] air fuel ratio (goal)
     -cd         [$change_delay] time (seconds) to delay after a change
     -d          [$DEBUG] enable debugging (1) or disable (0)
+    -i          [$min_inc] minimum increment amount
     -h          this screen
 
   RUNNING COMMANDS:
@@ -101,6 +98,8 @@ for ($i = 0; $i < @ARGV; $i++) {
         $change_delay = $req_arg_fn->('-cd');
     } elsif ($s1 eq '-d') {
         $DEBUG = $req_arg_fn->('-d');
+    } elsif ($s1 eq '-i') {
+        $min_inc = $req_arg_fn->('-i');
     } else {
 		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
 		exit 1;
@@ -124,19 +123,24 @@ my $s = IO::Select->new();
 $s->add(\*STDIN);
 
 my $table = Text::LookUpTable->load_file($table_file)
-	or die "unable to open table in file '$table_file': $!\n";
+	or die "unable to open table in file '$table_file': $!\n" .
+			"  use the -h option for usage information\n";
 my $orig_table = $table->copy();
 
-
+# For reading the incoming real time data.
 my $rtdata_in = MSQ::RTData->new($rtdata_in_file)
 	or die "unable to open file '$rtdata_in_file': $!\n";
 
-# out data is the rtdata while recording
+# For saving the real time data that was used during recording.
+#   This program can be paused/resumed, so this data is only
+#   from when it is not paused.
 my $rtdata_out = MSQ::RTData->new($rtdata_out_file, [$rtdata_in->columns])
 	or die "unable to open file '$rtdata_out_file': $!\n";
 # }}}
 
 # {{{ sub quit()
+
+# Quit operation used by signal handlers
 sub quit {
 
 	print "\n";
@@ -165,15 +169,15 @@ $SIG{INT} = sub {
 
 # }}}
 
-
-# main loop
+# start of main loop
 print "Press ENTER to pause/resume tuning\n";
 print "Press Ctrl-C to quit\n";
 
-my %point_change;  # stores times when points were changed
+my %point_change;  # stores times when points were changed, to delay next change
 my %cols = $rtdata_in->columns_hr();
 $rtdata_in->seek_end();  # skip old data
-my $has_changes = 0;
+my $has_changes = 0;  # flag used to trigger an update to the msqdev daemon
+					  # after changes
 
 my $start_paused = 1;
 while (1) {
@@ -184,54 +188,71 @@ while (1) {
 		if ($start_paused) {
 			$start_paused = 0;  # reset
 		} else {
-			<STDIN>;  # read and discard
+			<STDIN>;  # read and discard, reset input
 		}
 
 		print "PAUSED: press ENTER to resume\n";
 		<STDIN>;  # block for ENTER
 
-		# skip intermediate data
+		# skip data collected while paused
 		$rtdata_in->seek_end();
 	}
 	# }}}
 
+	# Update the data
+	#
+	# The algorithm, in general, is as follows.
+	# 
+	# 1. Find the value at the nearest point of the recent data capture
+	# 2. If the fuel mixture at that point is wrong try and adjust it.
+	#
+	# It does not account for rapid changes in acceleration or other
+	# circumstance which may cause the afr to be inaccurate.
+	# This is why it can be paused/resumed.
+	#
 	while (my $vals = $rtdata_in->getline()) {
 
-		# save the data
+		# save the data (while not paused)
 		$rtdata_out->print($vals);
 
-
-		# adjust the value in the table
-
+		# The current values of the last rtdata point
 		my $afr1     = $vals->[$cols{afr1}];
 		my $rpm 	 = $vals->[$cols{rpm}];
 		my $fuelload = $vals->[$cols{fuelload}];
 		my $ver      = $vals->[$cols{veCurr1}];  # ve in rtdata
 
-		# get the single nearest point
+		# Get the single nearest point.
+		#  See Text::LookUpTable for operation of 'lookup_points'
 		my $point = ($table->lookup_points($rpm, $fuelload, 0))[0];
 
+		# Get the value for the nearest point we found previously.
 		my $vet = $table->get($point->[0], $point->[1]);  # ve in table
 
-		my $puid = $point->[0] . "," . $point->[1];  # point unique identifier
+		# Point unique identifier (puid).
+		# Used to provide a unique id for each point
+		# along with the %point_change hash.
+		my $puid = $point->[0] . "," . $point->[1];
 
 		#print "ver, vet: $ver, $vet\n" if $DEBUG;
 
-		# new entry
+		# Unless this entry has already been defined, initialize it
 		unless (exists $point_change{$puid}) {
 			# initialize with an expired time so a change will occur
 			$point_change{$puid} = time() - ($change_delay + 1);
 		}
+
 		# skip if change delay has not elapsed
 		if ((time() - $point_change{$puid}) < $change_delay) {
 			#print "delay...\n" if $DEBUG;
 			#print "~" if $DEBUG;
 			next;
 		}
+		# we can make a change, the time delay has elapsed
 
+		# If the difference is large enough to warrant a change
 		if (abs($afr1 - $goal_afr1) > 0.1) {
-			# difference in afr is large enough to warrant a change
 
+			# Calculate the new ve value
 			my $new_ve;
 			if ($afr1 < $goal_afr1) {
 				# too rich, lean it out
@@ -243,7 +264,11 @@ while (1) {
 				$new_ve = $vet + $min_inc;
 			}
 
+			# Can't have negative ve values
 			$new_ve = 0 if ($new_ve < 0);
+
+			# Can't have too large a value either
+			$new_ve = 255 if ($new_ve > 255);
 
 			print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
 
@@ -256,13 +281,11 @@ while (1) {
 	}
 
 	if ($has_changes) {
-		$has_changes = 0;
+		$has_changes = 0;  # reset
 
-		$table->save_file();
+		$table->save_file();       # save our changes
 		`kill -HUP \`cat pid\``;   # tell msqdev update the ecu
 	}
 
-
 	usleep(2e4);    	# slow things down
 }
-

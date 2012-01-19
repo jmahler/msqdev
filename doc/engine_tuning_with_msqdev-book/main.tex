@@ -150,6 +150,25 @@ indicated by the gap in the center..}
 \label{fig:ssrerr}
 \end{figure}
 
+\subsection{convergence of VE tuning}
+
+It would be useful to know whether the changes that are being made
+converge to some stable value.
+Suppose the goal is to achieve some air fuel ratio and we are in a
+limited range of the ve map, such as at idle.
+The changes of each of these points can be plotted over time and
+if they stabilizing they will reach a constant value.
+
+To display this data it needs to be arranged in a certain way.
+In this example we will be using R\cite{R} and Ggplot2\cite{wickham2009ggplot2}.
+
+The data file should consist of the following values:
+\begin{itemize}
+\item time - Time in seconds.
+\item veCurr1 - The current ve setting.
+\item group - A unique identifier for a point such as X-Y, where
+  X and Y are the unique row and column.
+\end{itemize}
 
 \section{Acceleration Tuning}
 \label{sec:acctun}

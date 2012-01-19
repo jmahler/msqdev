@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define DEBUG true
+#define DEBUG false
 
 #include <ctime>
 #include <fstream>
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
 	stringstream usagess;
 		usagess << " USAGE:\n"
          	 	<< "   msqdev <device> [<options>]\n"
-        	 	<< "   msqdev /dev/ttyUSB0 ./\n"
+        	 	<< "   msqdev /dev/ttyUSB0 -d ./ -uf\n"
 				<< " OPTIONS:\n"
 				<< "   -d           directory of files, default './'\n"
 				<< "   -ue          update ecu from files on startup\n"
@@ -139,7 +139,7 @@ int main(int argc, char** argv)
 			update = file;
 		} else if (arg == "-d") {
 			if ((i + 1) >= argc) {
-				cerr << "the -d option requires a director" << endl;
+				cerr << "the -d option requires a directory" << endl;
 				return 1;  // error
 			}
 		} else {
