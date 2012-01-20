@@ -109,6 +109,33 @@ jeri@bishop tmp-msqdev$ ls  # msqdev created files
 advanceTable1  afrTable1  pid  rtdata  veTable1
 \end{verbatim}
 
+\subsection{Managing Modifications with Git}
+
+One benefit of a file based system is that changes can be
+managed using a version control system such as Git \cite{GIT}.
+The author's preference is to use one directory for each install.
+And to use one branch for every tuning session.
+As an example the first branch could be the 'stock' settings.
+Another branch could be the settings on a particular date.
+A benefit of branches is that it is easy to change between them
+using a simple 'git checkout'.
+
+\begin{verbatim}
+jeri@bishop RedTruck-msqdev$ ls
+advanceTable1  afrTable1  analyze  pid  README.md  rtdata  veTable1
+jeri@bishop RedTruck-msqdev$ git branch
+* 2012-10-19
+  master
+  stock
+jeri@bishop RedTruck-msqdev$ git checkout stock
+Switched to branch 'stock'
+jeri@bishop RedTruck-msqdev$ git branch
+  2012-10-19
+  master
+* stock
+jeri@bishop RedTruck-msqdev$
+\end{verbatim}
+
 \section{Steady State Tuning}
 \label{sec:steadytun}
 
@@ -169,6 +196,10 @@ The data file should consist of the following values:
 \item group - A unique identifier for a point such as X-Y, where
   X and Y are the unique row and column.
 \end{itemize}
+
+One possible shortcoming is the fact that points do not change
+evenly over time.
+A point that is rarely used will rarely change.
 
 \section{Acceleration Tuning}
 \label{sec:acctun}

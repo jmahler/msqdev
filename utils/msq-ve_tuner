@@ -27,6 +27,7 @@ use Text::LookUpTable;
 use Time::HiRes qw(usleep);
 use IO::Select;
 use MSQ::RTData;
+use IO::File;
 
 # {{{ process @ARGV
 
@@ -35,6 +36,7 @@ my $rtdata_in_file	= "rtdata"; # real time data file
 my $goal_afr1		= 12.4;   	# goal air fuel ratio
 my $change_delay	= 2;   		# change_delay in seconds
 my $DEBUG			= 0;
+my $cve_file		= '/dev/null';  # output file for convergence ve data
 
 # constants
 my $min_inc = 1;			# minimum increment amount 
@@ -55,6 +57,7 @@ my $usage = <<"HERE";
     -cd         [$change_delay] time (seconds) to delay after a change
     -d          [$DEBUG] enable debugging (1) or disable (0)
     -i          [$min_inc] minimum increment amount
+    -cve        [$cve_file] data output for convergence ve tuning
     -h          this screen
 
   RUNNING COMMANDS:
@@ -100,6 +103,8 @@ for ($i = 0; $i < @ARGV; $i++) {
         $DEBUG = $req_arg_fn->('-d');
     } elsif ($s1 eq '-i') {
         $min_inc = $req_arg_fn->('-i');
+    } elsif ($s1 eq '-cve') {
+        $cve_file = $req_arg_fn->('-cve');
     } else {
 		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
 		exit 1;
@@ -136,6 +141,26 @@ my $rtdata_in = MSQ::RTData->new($rtdata_in_file)
 #   from when it is not paused.
 my $rtdata_out = MSQ::RTData->new($rtdata_out_file, [$rtdata_in->columns])
 	or die "unable to open file '$rtdata_out_file': $!\n";
+
+# {{{ setup for convergence ve tuning data
+my $cve_fh = new IO::File;
+
+my $cve_write_cols = 1;
+if (-e $cve_file) {
+	$cve_write_cols = 0;
+}
+
+unless($cve_fh->open(">> $cve_file")) {
+	die("unable to open file '$cve_file': $!\n");
+}
+
+if ($cve_write_cols) {
+	print $cve_fh "time,veCurr1,group\n";
+}
+
+seek($cve_fh, 2, 0);  # to end of file EOF
+# }}}
+
 # }}}
 
 # {{{ sub quit()
@@ -271,6 +296,16 @@ while (1) {
 			$new_ve = 255 if ($new_ve > 255);
 
 			print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
+
+			# also save the ve convergence data
+			my $group = $puid;  # Define group in terms of the unique id,
+			$group =~ s/,/_/g;  # but don't use ',' because it conflicts with CSV
+			
+			my $t = $vals->[$cols{localtime}];
+			print $cve_fh "$t,$new_ve,$group\n";
+
+		my $puid = $point->[0] . "," . $point->[1];
+		my $fuelload = $vals->[$cols{fuelload}];
 
 			$point_change{$puid} = time();  # reset delay
 			$table->set($point->[0], $point->[1], $new_ve);
