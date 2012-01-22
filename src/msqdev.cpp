@@ -182,7 +182,7 @@ int main(int argc, char** argv)
 	MSQData* tables[3];
 	int num_tables = 3;
 
-	// {{{ read advanceTable1
+	// {{{ define advanceTable1, and read/write
 	/*
 	 * doc/ini/megasquirt-ii.ms2extra.alpha_3.0.3u_20100522.ini
 	 *
@@ -212,7 +212,7 @@ int main(int argc, char** argv)
 	advanceTable1.readFile();
 	// }}}
 
-	// {{{ read veTable1
+	// {{{ define veTable1, and read/write
 	/*
 	 * doc/ini/megasquirt-ii.ms2extra.alpha_3.0.3u_20100522.ini
 	 *
@@ -247,7 +247,7 @@ int main(int argc, char** argv)
 	veTable1.readFile();
 	// }}}
 
-	// {{{ read afrTable1
+	// {{{ define afrTable1, and read/write
 	/*
 	 * doc/ini/megasquirt-ii.ms2extra.alpha_3.0.3u_20100522.ini
 	 * 
@@ -391,6 +391,9 @@ int main(int argc, char** argv)
 
 	RTConfigScalar deltaT("deltaT", "S32", 96, 1.0, 0.0);
 	rtconfig.push_back(&deltaT);
+
+	RTConfigScalar rpmdot("rpmdot", "S16", 164, 10, 0.0);
+	rtconfig.push_back(&rpmdot);
 
 	// serial_device, file, buffer length, config(above)
 	MSQRealTime rtData(&serial, "rtdata", 169, rtconfig);

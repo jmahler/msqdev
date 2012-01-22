@@ -58,6 +58,7 @@ my @col_sel = @ARGV;  # column selections
 
 # first line should contain the column names separated by spaces
 my $first_line = <IN>;
+chomp($first_line);
 
 my @col_selp;  # selection positions
 
@@ -91,6 +92,7 @@ my @max_len;  # max number of spaces, used for even column output
 while (1) {
 	while (my $line = <IN>) {
 		next if $skip_first;
+		chomp($line);
 
 		my @parts = split /,/, $line;
 		
