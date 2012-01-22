@@ -152,7 +152,7 @@ my $rtdata_out = MSQ::RTData->new($rtdata_out_file, [$rtdata_in->columns])
 # {{{ setup convergence ve tuning output file
 my $cve_fh = new IO::File;
 
-my $cve_file = sprintf("cve-%d%02d%02d-%02d:%02d:%02d.csv", $year, $month, $day, $hour, $min, $sec);
+my $cve_file = sprintf("cve-a_$goal_afr1-cd_$change_delay-%d%02d%02d-%02d:%02d:%02d.csv", $year, $month, $day, $hour, $min, $sec);
 
 if (-e $cve_file) {
 	die "cve file '$cve_file' alreay exists! (it shouldn't)\n";
