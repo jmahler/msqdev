@@ -247,15 +247,19 @@ while (1) {
 		# reset the $tran_time if one found
 		my $rpmdot = $vals->[$cols{rpmdot}];
 		my $tpsDOT = $vals->[$cols{tpsDOT}];
-		if (abs($rpmdot) > 200 or abs($tpsDOT) > 15) {
+		my $rpm = $vals->[$cols{rpm}];
+		my $tps = $vals->[$cols{tps}];
+
+		if (abs($rpmdot) > 200 or
+				abs($tpsDOT) > 15 or
+				($rpm > 3000 and $tps < 5))
+		{
 			# If this is the first detection
 			if (! $in_transient_delay) {
 				print "X";
 			}
 			$in_transient_delay = 1;
 			$tran_time = time();
-
-			print "transient: abs(rpmdot:$rpmdot) > 200 or abs(tpsDOT:$tpsDOT) > 15\n" if $DEBUG; 
 		}
 
 		# Skip this loop if insufficient time has elapsed
@@ -270,7 +274,6 @@ while (1) {
 
 		# The current values of the last rtdata point
 		my $afr1     = $vals->[$cols{afr1}];
-		my $rpm 	 = $vals->[$cols{rpm}];
 		my $fuelload = $vals->[$cols{fuelload}];
 		my $ver      = $vals->[$cols{veCurr1}];  # ve in rtdata
 
