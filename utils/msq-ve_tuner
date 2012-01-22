@@ -29,7 +29,7 @@ use IO::Select;
 use MSQ::RTData;
 use IO::File;
 
-# {{{ process @ARGV
+# {{{ process @ARGV, config vars
 
 # config variables
 my $rtdata_in_file	= "rtdata"; # real time data file
@@ -37,6 +37,8 @@ my $goal_afr1		= 12.4;   	# goal air fuel ratio
 my $change_delay	= 2;   		# change_delay in seconds
 my $DEBUG			= 0;
 my $cve_file		= '/dev/null';  # output file for convergence ve data
+my $tran_delay      = 3;        # delay in seconds after detection of
+								# a transient condition
 
 # constants
 my $min_inc = 1;			# minimum increment amount 
@@ -58,6 +60,8 @@ my $usage = <<"HERE";
     -d          [$DEBUG] enable debugging (1) or disable (0)
     -i          [$min_inc] minimum increment amount
     -cve        [$cve_file] data output for convergence ve tuning
+    -td         [$tran_delay] delay, in seconds, after detection of
+                              a transient condition (large rpmdot or tpsDOT)
     -h          this screen
 
   RUNNING COMMANDS:
@@ -105,6 +109,8 @@ for ($i = 0; $i < @ARGV; $i++) {
         $min_inc = $req_arg_fn->('-i');
     } elsif ($s1 eq '-cve') {
         $cve_file = $req_arg_fn->('-cve');
+    } elsif ($s1 eq '-td') {
+        $tran_delay = $req_arg_fn->('-td');
     } else {
 		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
 		exit 1;
@@ -203,6 +209,9 @@ my %cols = $rtdata_in->columns_hr();
 $rtdata_in->seek_end();  # skip old data
 my $has_changes = 0;  # flag used to trigger an update to the msqdev daemon
 					  # after changes
+my $tran_time = time();  # time of last transient detection,
+						 # used along with $tran_delay
+my $in_transient_delay = 1;  # used to reduce transient detection output
 
 my $start_paused = 1;
 while (1) {
@@ -237,7 +246,29 @@ while (1) {
 	#
 	while (my $vals = $rtdata_in->getline()) {
 
-		# save the data (while not paused)
+		# Check for a transient,
+		# reset the $tran_time if one found
+		my $rpmdot = $vals->[$cols{rpmdot}];
+		my $tpsDOT = $vals->[$cols{tpsDOT}];
+		if (abs($rpmdot) > 200 or abs($tpsDOT) > 15) {
+			# If this is the first detection
+			if (! $in_transient_delay) {
+				print "X";
+			}
+			$in_transient_delay = 1;
+			$tran_time = time();
+
+			print "transient: abs(rpmdot:$rpmdot) > 200 or abs(tpsDOT:$tpsDOT) > 15\n" if $DEBUG; 
+		}
+
+		# Skip this loop if insufficient time has elapsed
+		# since the last transient.
+		if (time() - $tran_time < $tran_delay) {
+			next;
+		}
+		$in_transient_delay = 0;
+
+		# save the data (while not paused and no transients)
 		$rtdata_out->print($vals);
 
 		# The current values of the last rtdata point
