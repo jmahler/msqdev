@@ -28,33 +28,52 @@ use Time::HiRes qw(usleep);
 # be more easily viewed.
 #
 
+my $in_file = 'rtdata';
+
 my $pname = (split /\//, $0)[-1];  # program name without directories
 my $usage =  <<"USAGE";
   USAGE:
-    $pname <file> <col1>[ <col2> ...]
+    $pname [-f <file>] <col1>[ <col2> ...]
+
+  OPTIONS:
+
+    -f      [$in_file] real time data file
+    -h      this help page
 
   EXAMPLES:
 
     # advanceTable1 tuning
     # 'advance' should change after each modification and
     # 'tps' should be kept stable for steady state tuning.
-    $pname rtdata rpm map advance tps
+    $pname rpm map advance tps
 
     # veTable1 tuning
-    $pname rtdata rpm fuelload veCurr1 tps
+    $pname rpm fuelload veCurr1 tps
+
+    # To determine the column names available used the 'head' command.
+    head -n 1 rtdata   # where 'rtdata' is the name of the file
 
 USAGE
 
-if (@ARGV < 2) {
-	die $usage;
-}
+# process options and find column selections
+my @col_sel;
+for (my $i = 0; $i < @ARGV; $i++) {
+    my $opt = $ARGV[$i];
 
-my $in_file = shift @ARGV;
+    if ($opt eq '-f') {
+        # get the argument and adjust $i to skip it
+        $i++;
+        $in_file = $ARGV[$i];
+    } elsif ($opt eq '-h') {
+        print $usage;
+        exit;
+    } else {
+        push @col_sel, $opt;
+    }
+}
 
 open(IN, "< $in_file")
 	or die "unable to open file '$in_file': $!";
-
-my @col_sel = @ARGV;  # column selections
 
 # first line should contain the column names separated by spaces
 my $first_line = <IN>;
