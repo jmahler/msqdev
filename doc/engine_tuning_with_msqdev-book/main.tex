@@ -200,6 +200,33 @@ The data file should consist of the following values:
 One possible shortcoming is the fact that points do not change
 evenly over time.
 A point that is rarely used will rarely change.
+Figure \ref{fig:cve01} and Figure \ref{fig:cve02} give some examples.
+
+\begin{figure}
+\center
+\includegraphics[scale=0.7]{analyze/cve/cve-4point-cd3.pdf}
+\caption{Adjustments of 4 points over time.  It can be seen
+that progress was steady but the time was too short to reach
+a stable point where it would oscillate.}
+\label{fig:cve01}
+\end{figure}
+
+\begin{figure}
+\center
+\includegraphics[scale=0.7]{analyze/cve/cve-many_points-cd3.pdf}
+\caption{Adjustment of many points over time.
+It is difficult to discern what is going on here and many
+adjustments look almost random.  The point around 3\_ is interesting
+because it is adjusted way up and then way down.
+This suggests that it was unable to find a stable point.}
+\label{fig:cve02}
+\end{figure}
+
+Another problem with auto tuning is that it only covers a subset
+of the table.
+How are values for the other points extrapolated?
+One solution would be to find a least squares fit of the best points
+found and then use this function to define the remaining points.
 
 \section{Acceleration Tuning}
 \label{sec:acctun}
