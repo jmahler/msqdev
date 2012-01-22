@@ -36,7 +36,6 @@ my $rtdata_in_file	= "rtdata"; # real time data file
 my $goal_afr1		= 12.4;   	# goal air fuel ratio
 my $change_delay	= 2;   		# change_delay in seconds
 my $DEBUG			= 0;
-my $cve_file		= '/dev/null';  # output file for convergence ve data
 my $tran_delay      = 3;        # delay in seconds after detection of
 								# a transient condition
 
@@ -59,7 +58,6 @@ my $usage = <<"HERE";
     -cd         [$change_delay] time (seconds) to delay after a change
     -d          [$DEBUG] enable debugging (1) or disable (0)
     -i          [$min_inc] minimum increment amount
-    -cve        [$cve_file] data output for convergence ve tuning
     -td         [$tran_delay] delay, in seconds, after detection of
                               a transient condition (large rpmdot or tpsDOT)
     -h          this screen
@@ -68,6 +66,11 @@ my $usage = <<"HERE";
 
    ENTER        pause/resume recording
    Ctrl-C       quit
+
+  OUTPUT FILES:
+
+   msq-ve_tuner-*    real time data (rtdata) during tuning 
+   cve-*.csv         convergence ve tuning (change of points over time)
 
 HERE
 
@@ -107,8 +110,6 @@ for ($i = 0; $i < @ARGV; $i++) {
         $DEBUG = $req_arg_fn->('-d');
     } elsif ($s1 eq '-i') {
         $min_inc = $req_arg_fn->('-i');
-    } elsif ($s1 eq '-cve') {
-        $cve_file = $req_arg_fn->('-cve');
     } elsif ($s1 eq '-td') {
         $tran_delay = $req_arg_fn->('-td');
     } else {
@@ -148,23 +149,19 @@ my $rtdata_in = MSQ::RTData->new($rtdata_in_file)
 my $rtdata_out = MSQ::RTData->new($rtdata_out_file, [$rtdata_in->columns])
 	or die "unable to open file '$rtdata_out_file': $!\n";
 
-# {{{ setup for convergence ve tuning data
+# {{{ setup convergence ve tuning output file
 my $cve_fh = new IO::File;
 
-my $cve_write_cols = 1;
+my $cve_file = sprintf("cve-%d%02d%02d-%02d:%02d:%02d.csv", $year, $month, $day, $hour, $min, $sec);
+
 if (-e $cve_file) {
-	$cve_write_cols = 0;
+	die "cve file '$cve_file' alreay exists! (it shouldn't)\n";
 }
 
-unless($cve_fh->open(">> $cve_file")) {
-	die("unable to open file '$cve_file': $!\n");
-}
+$cve_fh->open("> $cve_file")
+	or die("unable to open file '$cve_file': $!\n");
 
-if ($cve_write_cols) {
-	print $cve_fh "time,veCurr1,group\n";
-}
-
-seek($cve_fh, 2, 0);  # to end of file EOF
+print $cve_fh "time,veCurr1,group\n";
 # }}}
 
 # }}}
@@ -334,9 +331,6 @@ while (1) {
 			
 			my $t = $vals->[$cols{localtime}];
 			print $cve_fh "$t,$new_ve,$group\n";
-
-		my $puid = $point->[0] . "," . $point->[1];
-		my $fuelload = $vals->[$cols{fuelload}];
 
 			$point_change{$puid} = time();  # reset delay
 			$table->set($point->[0], $point->[1], $new_ve);
