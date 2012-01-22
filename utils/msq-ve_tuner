@@ -306,38 +306,62 @@ while (1) {
 		# we can make a change, the time delay has elapsed
 
 		# If the difference is large enough to warrant a change
-		if (abs($afr1 - $goal_afr1) > 0.1) {
+		my $d = abs($afr1 - $goal_afr1); # delta
+		if ($d > 0.2) {
 
-			# Calculate the new ve value
-			my $new_ve;
-			if ($afr1 < $goal_afr1) {
-				# too rich, lean it out
-				print "-";
-				$new_ve = $vet - $min_inc;
-			} elsif ($afr1 > $goal_afr1) {
-				# too lean, richen it up
-				print "+";
-				$new_ve = $vet + $min_inc;
+			# Calculate the change
+			#
+			# Here a linear function is used to produce larger
+			# changes with larger deltas and smaller changes
+			# with smaller deltas.
+			#
+			# Using y = m*x + b
+			# and two reasonable points
+			#   1 = m*0.2 + b  # change is 1 when delta is 0.2
+			#   2 = m*1 + b    # change is 2 when delta is 1.0
+			# results in the function
+			#   y = 1.25*x + 0.75
+			#
+			my $c = 1.25*$d + 0.75;
+			$c = int($c);  # cannot be a floating point number
+
+			# limit the maximum change
+			$c = 5 if ($c > 5);
+
+			# If there is a large enough change
+			if ($c > 0) {
+				# Apply the change to produce new ve value
+				my $new_ve;
+				if ($afr1 < $goal_afr1) {
+					# too rich, lean it out
+					print "-";
+					$new_ve = $vet - $c;
+				} elsif ($afr1 > $goal_afr1) {
+					# too lean, richen it up
+					print "+";
+					$new_ve = $vet + $c;
+				}
+
+				# Can't have negative ve values
+				$new_ve = 0 if ($new_ve < 0);
+
+				# Can't have too large a value either
+				$new_ve = 255 if ($new_ve > 255);
+
+				print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
+
+				# also save the ve convergence data
+				my $group = $puid;  # Define group in terms of the unique id,
+				$group =~ s/,/_/g;  # but don't use ',' because
+									#  it conflicts with CSV.
+				
+				my $t = $vals->[$cols{localtime}];
+				print $cve_fh "$t,$new_ve,$group\n";
+
+				$point_change{$puid} = time();  # reset delay
+				$table->set($point->[0], $point->[1], $new_ve);
+				$has_changes = 1;
 			}
-
-			# Can't have negative ve values
-			$new_ve = 0 if ($new_ve < 0);
-
-			# Can't have too large a value either
-			$new_ve = 255 if ($new_ve > 255);
-
-			print "ve ($puid) (old, new): $vet, $new_ve\n" if $DEBUG;
-
-			# also save the ve convergence data
-			my $group = $puid;  # Define group in terms of the unique id,
-			$group =~ s/,/_/g;  # but don't use ',' because it conflicts with CSV
-			
-			my $t = $vals->[$cols{localtime}];
-			print $cve_fh "$t,$new_ve,$group\n";
-
-			$point_change{$puid} = time();  # reset delay
-			$table->set($point->[0], $point->[1], $new_ve);
-			$has_changes = 1;
 		} else {
 			#print "=";
 		}
