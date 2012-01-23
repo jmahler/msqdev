@@ -250,8 +250,8 @@ while (1) {
 		my $rpm = $vals->[$cols{rpm}];
 		my $tps = $vals->[$cols{tps}];
 
-		if (abs($rpmdot) > 200 or
-				abs($tpsDOT) > 15 or
+		if (abs($rpmdot) > 400 or
+				abs($tpsDOT) > 20 or
 				($rpm > 3000 and $tps < 5))
 		{
 			# If this is the first detection

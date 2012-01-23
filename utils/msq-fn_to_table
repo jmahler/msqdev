@@ -1,0 +1,175 @@
+#!/usr/bin/perl
+use strict;
+
+#
+# Copyright (C) 2011 Jeremiah Mahler <jmmahler@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+#
+# See USAGE (below) for a description of this utility.
+#
+
+use Text::LookUpTable;
+
+# {{{ process @ARGV, configure defaults
+
+my $pname = (split /\//, $0)[-1];  # name of this program without spaces
+
+my $table_file;
+
+# default coeficients for a linear function
+my $a;
+my $b;
+my $c;
+
+my $integer = 1;  # truncate value to an integer
+my $prevent_negative = 1;  # whether to prevent negative values
+
+my $usage = <<"HERE";
+    USAGE:
+
+        # This utility is used to set the values of a look up
+        # table (Text::LookUpTable) in a file according to
+        # a linear function defined by the given coefficients.
+        #  z = a*x + b*y + c
+        #
+        # The table in the file is modified in place.
+
+        $pname -t table_file -a 1 -b 2 -c 3.25
+
+        # The coefficients are normally obtained by performing
+        # a least squares fit of multiple points.
+        
+    OPTIONS:
+
+        -a                  # a, coefficient
+        -b                  # b, coefficient
+        -c                  # c, intercept
+
+        -i                  # [$integer] truncate values to an integer if TRUE,
+                            # otherwise leave in floating point format.
+
+        -h                  help menu (this page)
+
+HERE
+
+{
+my $s1;
+my $s2;
+my $i;
+
+# {{{ $req_arg_fn - utility for checking a required second argument
+sub req_arg_fn {
+
+	my $op = $ARGV[$i - 1];
+
+	if (($i + 1) >= @ARGV) {
+		print STDERR "option '$op' requires an argument. See help ($pname -h)\n";
+		exit 1;
+	}
+
+	$i++;  # skip the second argument during the next iteration
+
+	return $ARGV[$i];  # return the second argument
+};
+# }}}
+
+for ($i = 0; $i < @ARGV; $i++) {
+	$s1 = $ARGV[$i];
+
+    if ($s1 eq '-h') {
+		print $usage;
+		exit;
+	} elsif ($s1 eq '-t') {
+        $table_file = req_arg_fn();
+	} elsif ($s1 eq '-a') {
+        $a = req_arg_fn();
+	} elsif ($s1 eq '-b') {
+        $b = req_arg_fn();
+	} elsif ($s1 eq '-c') {
+        $c = req_arg_fn();
+	} elsif ($s1 eq '-i') {
+        $integer = req_arg_fn();
+    } else {
+		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
+		exit 1;
+    }
+}
+
+# make sure all the required arguments were specified
+
+my $quit = 0; # used to quit if a required option is not given
+
+if (! defined $table_file) {
+	print STDERR "option -t, to specify the table file, must be given\n";
+	$quit = 1;
+}
+
+if (! defined $a) {
+	print STDERR "option -a must be given\n";
+	$quit = 1;
+}
+
+if (! defined $b) {
+	print STDERR "option -b must be given\n";
+	$quit = 1;
+}
+
+if (! defined $c) {
+	print STDERR "option -c must be given\n";
+	$quit = 1;
+}
+
+if ($quit) {
+	print STDERR " see usage (-h) for more info\n";
+	exit 1;
+}
+
+}
+
+# }}}
+
+my $tbl = Text::LookUpTable->load_file($table_file)
+	or die "Unable to load table from file '$table_file': $!\n";
+
+my @xc = $tbl->get_x_coords();
+my @yc = $tbl->get_y_coords();
+my $num_x = @xc;
+my $num_y = @yc;
+
+for (my $x = 0; $x < $num_x; $x++) {
+	for (my $y = 0; $y < $num_y; $y++) {
+		my $_x = $xc[$x];
+		my $_y = $yc[$y];
+
+		# calculate the value for this point
+		my $z = $a*$_x + $b*$_y + $c;
+
+		# ve values are only integers
+		if ($integer) {
+			$z = int($z);
+		}
+
+		if ($prevent_negative) {
+			$z = 0 if ($z < 0);
+		}
+
+		$tbl->set($x, $y, $z);
+	}
+}
+
+$tbl->save_file();
+
