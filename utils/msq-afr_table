@@ -28,14 +28,24 @@ my $veTable1_file = "veTable1";
 
 # These constants where obtained from
 #   RedTruck-msqdev/analyze/ve_tuner.R
-my $a = -0.1399;
-my $b = 0.0525;
-my $c = 0.0004;
-my $d = 17.9873;
+#my $a = -1.549e-01;
+my $a = -1.378e-01;
+my $b = 0;
+#my $c = 7.247e-03;
+my $c = -7.011e-03;
+#my $d = 7.868e-04;
+my $d = 3.549e-04;
+#my $e = 1.269e-02;
+my $e = 5.96e-03;
+#my $f = -3.460e-06;
+my $f = -1.406e-06;
+#my $g = 9.404e00;
+my $g = 1.545e01;
 
 my @avail_modes = qw(constant to_afrTable to_veTable1);
 my $mode = 'constant';
-my $afr = 14.7;
+my $afr = 13.5;
+my $drpm = 10000;  # only allow changes below this rpm
 
 my $usage = <<"HERE";
     USAGE:
@@ -45,26 +55,29 @@ my $usage = <<"HERE";
        on the linear function that predicts its behavior.
 
     OPTIONS:
-        (afr1 = a*veCurr1 + b*fuelload + c*rpm + d)
-
-        These constants would normally be obtained from a least
-        squares fit such as with analyze/ve_tuner.R
-
-        -a                  [$a] veCurr1 constant
-        -b                  [$b] fuelload constant
-        -c                  [$c] rpm constant
-        -d                  [$d] intercept constant
+        afr1 = a*veCurr1
+                    + c*fuelload + d*fuelload^2
+                    + e*rpm + f*rpm^2
+                    + g
+        coefficients
+        -a                  [$a]
+        -c                  [$c]
+        -d                  [$d]
+        -e                  [$e]
+        -f                  [$f]
+        -g                  [$g]
 
         -afrf               [$afrTable1_file] afr table file
         -vef                [$veTable1_file] ve table file
 
-        -m                  [$mode] set the mode (see below)
+        -m <mode>           [$mode] set the mode (see below)
 
-        -m constant         set a constant afr over entire veTable
-          -afr $afr
+        -afr $afr           (-m constant) set a constant afr over entire veTable
 
         -m to_afrTable1     convert values in veTable1 to afrTable1 
         -m to_veTable1      convert values in afrTable1 to veTable1
+
+        -drpm               [$drpm] only allow changes below this rpm
 
         -h                  help menu (this page)
 HERE
@@ -97,12 +110,18 @@ for ($i = 0; $i < @ARGV; $i++) {
 		exit;
 	} elsif ($s1 eq '-a') {
         $a = $req_arg_fn->('-a');
-	} elsif ($s1 eq '-b') {
-        $b = $req_arg_fn->('-b');
+#	} elsif ($s1 eq '-b') {
+#        $b = $req_arg_fn->('-b');
 	} elsif ($s1 eq '-c') {
         $c = $req_arg_fn->('-c');
 	} elsif ($s1 eq '-d') {
         $d = $req_arg_fn->('-d');
+	} elsif ($s1 eq '-e') {
+        $e = $req_arg_fn->('-e');
+	} elsif ($s1 eq '-f') {
+        $f = $req_arg_fn->('-f');
+	} elsif ($s1 eq '-g') {
+        $g = $req_arg_fn->('-g');
 	} elsif ($s1 eq '-afrf') {
         $afrTable1_file = $req_arg_fn->('-afrf');
     } elsif ($s1 eq '-vef') {
@@ -115,6 +134,8 @@ for ($i = 0; $i < @ARGV; $i++) {
         }
 	} elsif ($s1 eq '-afr') {
         $afr = $req_arg_fn->('-afr');
+	} elsif ($s1 eq '-drpm') {
+        $drpm = $req_arg_fn->('-drpm');
     } else {
 		print STDERR "unkown option '$s1'. See help ($pname -h)\n";
 		exit 1;
@@ -123,6 +144,18 @@ for ($i = 0; $i < @ARGV; $i++) {
 }
 
 # }}}
+
+# Calculate the ve value
+sub calc_ve {
+	my ($afr, $fuelload, $rpm) = @_;
+
+	# afr function solved for ve
+	my $ve = (1.0/$a)*($afr - ($c*$fuelload + $d*($fuelload ** 2)
+				+ $e*$rpm + $f*($rpm ** 2)
+				+ $g));
+
+	return $ve;
+}
 
 if ($mode eq 'constant') {
     my $veTable1 = Text::LookUpTable->load_file($veTable1_file)
@@ -134,12 +167,12 @@ if ($mode eq 'constant') {
     my $num_y = @yc;
 
     for (my $x = 0; $x < $num_x; $x++) {
+		my $rpm = $xc[$x];
+		last if ($rpm >= $drpm);
         for (my $y = 0; $y < $num_y; $y++) {
-            my $rpm = $xc[$x];
             my $fuelload = $yc[$y];
 
-            # afr function solved for ve
-            my $ve = (1.0/$a)*($afr - $b*$fuelload - $c*$rpm - $d);
+            my $ve = calc_ve($afr, $fuelload, $rpm);
 
             # ve values are only integers
             $ve = int($ve);
@@ -164,8 +197,10 @@ if ($mode eq 'constant') {
     my $num_y = @yc;
 
     for (my $x = 0; $x < $num_x; $x++) {
+		my $rpm = $xc[$x];
+		last if ($rpm >= $drpm);
+
         for (my $y = 0; $y < $num_y; $y++) {
-            my $rpm = $xc[$x];
             my $fuelload = $yc[$y];
 
             # find the nearest point
@@ -174,8 +209,7 @@ if ($mode eq 'constant') {
             # does not extrapolate values
             my $afr = $afrTable1->get($point->[0], $point->[1]);
 
-            # afr function solved for ve
-            my $ve = (1.0/$a)*($afr - $b*$fuelload - $c*$rpm - $d);
+            my $ve = calc_ve($afr, $fuelload, $rpm);
 
             # ve values are only integers
             $ve = int($ve);
