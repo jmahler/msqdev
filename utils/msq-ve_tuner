@@ -33,7 +33,7 @@ use IO::File;
 
 # config variables
 my $rtdata_in_file	= "rtdata"; # real time data file
-my $goal_afr1		= 12.4;   	# goal air fuel ratio
+my $goal_afr1		= 13.0;   	# goal air fuel ratio
 my $change_delay	= 2;   		# change_delay in seconds
 my $DEBUG			= 0;
 my $tran_delay      = 3;        # delay in seconds after detection of
@@ -251,7 +251,7 @@ while (1) {
 		my $tps = $vals->[$cols{tps}];
 
 		if (abs($rpmdot) > 400 or
-				abs($tpsDOT) > 20 or
+				abs($tpsDOT) > 50 or
 				($rpm > 3000 and $tps < 5))
 		{
 			# If this is the first detection
