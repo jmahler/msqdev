@@ -4,8 +4,8 @@ NAME
 
 Msqdev - Megasquirt development (tuning) system
 
-INTRODUCTON
------------
+INTRODUCTION
+------------
 
 Why do we need another system for tuning [Megasquirt][megasquirt]?
 
